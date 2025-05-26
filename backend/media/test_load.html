@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>报告加载测试</title>
+</head>
+<body>
+    <h1>测试任务184报告加载</h1>
+    <div id="content"></div>
+    
+    <script>
+        async function loadReport() {
+            try {
+                console.log('开始加载报告...');
+                const response = await fetch('/media/reports/task_184/reports/summary.html');
+                console.log('响应状态:', response.status);
+                
+                if (response.ok) {
+                    const htmlContent = await response.text();
+                    console.log('加载成功，内容长度:', htmlContent.length);
+                    document.getElementById('content').innerHTML = htmlContent;
+                } else {
+                    console.error('加载失败:', response.status);
+                    document.getElementById('content').innerHTML = `<p>加载失败: ${response.status}</p>`;
+                }
+            } catch (error) {
+                console.error('加载错误:', error);
+                document.getElementById('content').innerHTML = `<p>加载错误: ${error.message}</p>`;
+            }
+        }
+        
+        // 页面加载完成后测试
+        window.addEventListener('load', loadReport);
+    </script>
+</body>
+</html> 

@@ -1,0 +1,13 @@
+{
+  "task_id": 188,
+  "total_images": 5,
+  "processed_images": 5,
+  "algorithms_used": [
+    "1",
+    "2",
+    "3"
+  ],
+  "processing_start": "2025-05-23T11:16:41.499673+00:00",
+  "processing_end": "2025-05-23T11:16:57.489114+00:00",
+  "logs": []
+}

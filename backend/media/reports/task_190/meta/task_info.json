@@ -1,0 +1,14 @@
+{
+  "task_id": 190,
+  "task_name": "图像准确度AI检测（ImageHash算法）+图像质量AI检测（Opencv算法1）任务-202505231922",
+  "description": "图像准确度AI检测（ImageHash算法）+图像质量AI检测（Opencv算法1）任务-202505231922处理任务",
+  "algorithms": [
+    "1",
+    "2",
+    "3"
+  ],
+  "image_count": 6,
+  "created_at": "2025-05-23T11:22:29.748593+00:00",
+  "updated_at": "2025-05-23T11:22:48.925244+00:00",
+  "user": "admin"
+}

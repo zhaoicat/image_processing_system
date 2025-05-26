@@ -1,0 +1,70 @@
+# Python cache files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+.pytest_cache/
+.coverage
+
+# Database files
+*.db
+*.sqlite3
+db.sqlite3
+
+# Log files
+*.log
+logs/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Virtual environments
+venv/
+env/
+.env
+
+# Media files (development uploads)
+media/uploads/
+media/cache/
+
+# Static files (will be collected during build)
+staticfiles/
+
+# Test files
+test_*.py
+*_test.py
+
+# Documentation
+*.md
+README*
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Reports (development generated)
+reports/*.json
+reports/*.html
+
+# Cache directories
+.mypy_cache/
+.pytest_cache/ 
