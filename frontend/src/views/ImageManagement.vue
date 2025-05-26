@@ -221,30 +221,9 @@ const handleImageError = (event) => {
   const originalSrc = event.target.src
   console.log('图片加载失败:', originalSrc)
   
-  // 尝试修复URL
-  if (originalSrc.includes(getBackendUrl('/media/uploaded_images/'))) {
-    // 如果已经使用了正确的URL前缀，可能是图片真的不存在
-    console.log('图片可能不存在')
-    // 使用默认图片
-    event.target.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2VlZWVlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNHB4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSIgZmlsbD0iIzk5OTk5OSI+图片加载失败</dGV4dD48L3N2Zz4='
-    return
-  } else if (originalSrc.includes('/uploaded_images/') && originalSrc.includes('localhost')) {
-    // 尝试修复重复的本地主机URL
-    const filename = originalSrc.split('/').pop()
-    const fixedSrc = `${UPLOADED_IMAGES_URL}/${filename}`
-    console.log('修复重复的媒体URL:', fixedSrc)
-    event.target.src = fixedSrc
-    return
-  } else if (originalSrc.includes('/media/')) {
-    // 尝试直接访问文件名
-    const filename = originalSrc.split('/').pop()
-    const fixedSrc = getImageUrl(filename)
-    console.log('尝试直接访问文件:', fixedSrc)
-    event.target.src = fixedSrc
-    return
-  }
-  
-  // 使用默认图片代替
+  // 直接使用默认图片代替，不再尝试修复URL
+  // 因为getImageUrl函数已经能正确处理Django返回的文件路径
+  console.log('图片加载失败，使用默认图片')
   event.target.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2VlZWVlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNHB4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSIgZmlsbD0iIzk5OTk5OSI+图片加载失败</dGV4dD48L3N2Zz4='
 }
 </script>

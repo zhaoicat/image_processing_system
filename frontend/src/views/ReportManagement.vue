@@ -391,7 +391,8 @@ const loadHtmlReport = async (reportId, algorithm = 'all') => {
     if (algorithm === 'all') {
       // 加载综合报告 (summary.html)
       try {
-        const summaryUrl = getBackendUrl(`/media/reports/task_${taskId}/reports/summary.html`);
+        // 使用相对路径通过Vite代理访问，避免CORS问题
+        const summaryUrl = `/media/reports/task_${taskId}/reports/summary.html`;
         console.log(`尝试加载综合报告: ${summaryUrl}`);
         
         const summaryResponse = await fetch(summaryUrl);
@@ -421,7 +422,8 @@ const loadHtmlReport = async (reportId, algorithm = 'all') => {
       const algorithmName = algorithmNames[algorithm];
       if (algorithmName) {
         try {
-          const algorithmUrl = getBackendUrl(`/media/reports/task_${taskId}/reports/algorithms/${algorithmName}.html`);
+          // 使用相对路径通过Vite代理访问，避免CORS问题
+          const algorithmUrl = `/media/reports/task_${taskId}/reports/algorithms/${algorithmName}.html`;
           console.log(`尝试加载算法报告: ${algorithmUrl}`);
           
           const algorithmResponse = await fetch(algorithmUrl);
@@ -451,21 +453,21 @@ const loadHtmlReport = async (reportId, algorithm = 'all') => {
     if (reportContent && !reportContent.includes('error-message')) {
       console.log('开始处理相对路径替换...');
       
-      // 处理src属性的相对路径
+      // 处理src属性的相对路径 - 使用相对路径而不是绝对URL
       reportContent = reportContent.replace(
         /src=["'](?!https?:\/\/)(?!\/)((?:\.\/|\.\.\/)*)?([^"']+)["']/g, 
         (match, prefix, path) => {
-          const newUrl = getBackendUrl(`/media/reports/task_${taskId}/reports/${path}`);
+          const newUrl = `/media/reports/task_${taskId}/reports/${path}`;
           console.log(`src路径替换: ${match} -> src="${newUrl}"`);
           return `src="${newUrl}"`;
         }
       );
       
-      // 处理href属性的相对路径  
+      // 处理href属性的相对路径 - 使用相对路径而不是绝对URL
       reportContent = reportContent.replace(
         /href=["'](?!https?:\/\/)(?!\/)((?:\.\/|\.\.\/)*)?([^"']+)["']/g, 
         (match, prefix, path) => {
-          const newUrl = getBackendUrl(`/media/reports/task_${taskId}/reports/${path}`);
+          const newUrl = `/media/reports/task_${taskId}/reports/${path}`;
           console.log(`href路径替换: ${match} -> href="${newUrl}"`);
           return `href="${newUrl}"`;
         }

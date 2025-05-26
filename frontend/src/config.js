@@ -12,13 +12,13 @@ const config = {
   development: {
     API_BASE_URL: '/api',
     MEDIA_URL: '/media',
-    BACKEND_HOST: 'http://localhost:8000'
+    BACKEND_HOST: 'http://localhost:8888'
   },
   // 生产环境配置
   production: {
     API_BASE_URL: '/api',
     MEDIA_URL: '/media',
-    BACKEND_HOST: import.meta.env.VITE_BACKEND_HOST || 'http://localhost:8000'
+    BACKEND_HOST: import.meta.env.VITE_BACKEND_HOST || 'http://localhost:8888'
   }
 }
 
