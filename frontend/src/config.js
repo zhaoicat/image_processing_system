@@ -57,7 +57,7 @@ export const getReportUrl = (taskId, imgIndex, filename) => {
   return `${REPORTS_URL}/task_${taskId}/img_${imgIndex}/task_${taskId}_img_${imgIndex}/${filename}`
 }
 
-// 获取图片URL（增强调试版本）
+// 获取图片URL（修复跨域问题版本）
 export const getImageUrl = (filePath) => {
   console.log('🔍 getImageUrl 调试信息:')
   console.log('  输入路径:', filePath)
@@ -69,10 +69,18 @@ export const getImageUrl = (filePath) => {
     return ''
   }
   
-  // 如果已经是完整的URL，直接返回
+  // 强制使用相对路径，避免跨域问题
+  // 如果是完整URL，提取路径部分
   if (filePath.startsWith('http')) {
-    console.log('  ✅ 已是完整URL，直接返回')
-    return filePath
+    console.log('  🔄 检测到完整URL，提取路径部分')
+    try {
+      const url = new URL(filePath)
+      filePath = url.pathname
+      console.log('  📍 提取的路径:', filePath)
+    } catch (error) {
+      console.error('  ❌ URL解析错误:', error)
+      return ''
+    }
   }
   
   // 如果已经包含/media/前缀，直接返回
@@ -98,7 +106,7 @@ export const getImageUrl = (filePath) => {
     const fullPath = dirPath ? `${dirPath}/${encodedFileName}` : encodedFileName
     const finalUrl = `${MEDIA_URL}/${fullPath}`
     
-    console.log('  🎯 最终URL:', finalUrl)
+    console.log('  🎯 最终URL (相对路径):', finalUrl)
     return finalUrl
   } catch (error) {
     console.error('  ❌ URL编码错误:', error)

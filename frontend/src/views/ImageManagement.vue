@@ -216,14 +216,57 @@ const navigateTo = (path) => {
   router.push(path)
 }
 
-// 处理图片加载错误
+// 处理图片加载错误（增强调试版本）
 const handleImageError = (event) => {
   const originalSrc = event.target.src
-  console.log('图片加载失败:', originalSrc)
+  console.log('🚨 图片加载失败详细信息:')
+  console.log('  失败的URL:', originalSrc)
+  console.log('  图片元素:', event.target)
   
-  // 直接使用默认图片代替，不再尝试修复URL
-  // 因为getImageUrl函数已经能正确处理Django返回的文件路径
-  console.log('图片加载失败，使用默认图片')
+  // 检查是否是跨域问题
+  if (originalSrc.startsWith('http://127.0.0.1:8888') || originalSrc.startsWith('http://localhost:8888')) {
+    console.log('  ⚠️  检测到跨域请求！应该使用相对路径')
+    console.log('  🔧 尝试转换为相对路径')
+    
+    try {
+      const url = new URL(originalSrc)
+      const relativePath = url.pathname
+      console.log('  🔄 转换后的相对路径:', relativePath)
+      
+      // 尝试使用相对路径重新加载
+      event.target.src = relativePath
+      return // 不设置默认图片，让它重新尝试加载
+    } catch (error) {
+      console.error('  ❌ URL转换失败:', error)
+    }
+  }
+  
+  // 尝试直接访问图片URL进行调试
+  fetch(originalSrc)
+    .then(response => {
+      console.log('  📡 HTTP响应状态:', response.status)
+      console.log('  📡 HTTP响应文本:', response.statusText)
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.log('  ❌ 图片文件不存在或路径错误 (404)')
+        } else if (response.status === 403) {
+          console.log('  ❌ 图片访问被拒绝，权限问题 (403)')
+        } else if (response.status === 500) {
+          console.log('  ❌ 服务器内部错误 (500)')
+        } else {
+          console.log('  ❌ 其他HTTP错误:', response.status)
+        }
+      }
+    })
+    .catch(error => {
+      console.log('  🌐 网络请求错误:', error.message)
+      console.log('  🌐 错误类型:', error.name)
+      if (error.message.includes('CORS')) {
+        console.log('  🚫 确认是CORS跨域问题')
+      }
+    })
+  
+  console.log('  🔄 使用默认占位图片')
   event.target.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMTAwIDEwMCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2VlZWVlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNHB4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkeT0iLjNlbSIgZmlsbD0iIzk5OTk5OSI+图片加载失败</dGV4dD48L3N2Zz4='
 }
 </script>
