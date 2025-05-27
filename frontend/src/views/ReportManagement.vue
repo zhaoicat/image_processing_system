@@ -45,17 +45,23 @@ const algorithmDisplayNames = {
 
 // 获取报告对应的所有算法
 const getSelectedAlgorithmsFromReport = (report) => {
-  if (!report || !report.title) return '1'; // 默认返回算法1
+  if (!report) return '1'; // 默认返回算法1
   
   // 添加调试日志
   console.log(`为报告 ${report.id} 提取算法信息，报告标题: ${report.title}, 任务ID: ${report.task_id}`);
   
-  // 首先使用从HTML报告中提取的算法信息
+  // 优先使用任务数据中的algorithms字段（最准确的数据源）
+  if (report.task_algorithms && Array.isArray(report.task_algorithms) && report.task_algorithms.length > 0) {
+    const algorithmsStr = report.task_algorithms.map(algo => String(algo)).join('');
+    console.log(`从task_algorithms获取: ${algorithmsStr}`);
+    return algorithmsStr;
+  }
+  
+  // 其次使用报告中的algorithms字段
   if (report.algorithms) {
     console.log(`从report.algorithms获取: ${report.algorithms}`);
     return report.algorithms;
   }
-  
   
   // 尝试从报告内容中提取算法信息
   if (report.coverage_data && report.coverage_data.algorithms) {
@@ -63,13 +69,10 @@ const getSelectedAlgorithmsFromReport = (report) => {
     return report.coverage_data.algorithms;
   }
   
-  // 尝试从报告标题中提取算法信息
-  // 例如标题包含"ImageHash+OpenCV1"这样的组合
+  // 最后才使用标题推断（不太准确的方法）
   const algorithms = [];
-  
-  // 先检查任务名称
   const nameToCheck = report.task_name || report.title;
-  console.log(`任务名称检查: ${nameToCheck}`);
+  console.log(`从标题推断算法: ${nameToCheck}`);
   
   if (nameToCheck) {
     // 查找括号包含的内容（通常包含算法列表）
@@ -187,6 +190,44 @@ const highlightedTaskId = ref(null)
 // 添加当前选择的算法
 const currentAlgorithm = ref('all'); // 默认显示所有算法的综合报告
 
+// 添加缓存和优化相关的状态
+const dataCache = ref({
+  reports: null,
+  tasks: null,
+  lastFetchTime: null
+})
+const CACHE_DURATION = 5 * 60 * 1000 // 5分钟缓存
+
+// 时间格式化函数，处理Invalid Date问题
+const formatDateTime = (dateString) => {
+  if (!dateString) return '未知时间'
+  
+  try {
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) {
+      console.warn('无效的日期格式:', dateString)
+      return '时间格式错误'
+    }
+    return date.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    })
+  } catch (error) {
+    console.error('日期格式化错误:', error, dateString)
+    return '时间解析失败'
+  }
+}
+
+// 检查缓存是否有效
+const isCacheValid = () => {
+  if (!dataCache.value.lastFetchTime) return false
+  return Date.now() - dataCache.value.lastFetchTime < CACHE_DURATION
+}
+
 onMounted(async () => {
   // 从URL参数中获取taskId
   const urlParams = new URLSearchParams(window.location.search);
@@ -240,17 +281,27 @@ window.addEventListener('resize', () => {
 })
 
 const fetchReports = async () => {
+  // 如果缓存有效且不是强制刷新，使用缓存数据
+  if (isCacheValid() && dataCache.value.reports && dataCache.value.tasks) {
+    reports.value = dataCache.value.reports
+    console.log('使用缓存的报告数据')
+    return
+  }
+
   loading.value = true
   try {
-    const response = await reportService.getAll()
-    reports.value = response.data
+    console.log('开始获取报告数据...')
     
-    // 打印报告数据，查看结构
-    console.log('获取的报告数据:', response.data)
+    // 并行获取报告和任务数据
+    const [reportsResponse, tasksResponse] = await Promise.all([
+      reportService.getAll(),
+      taskService.getAll()
+    ])
     
-    // 获取所有任务数据，用于补充报告中的任务信息
-    const tasksResponse = await taskService.getAll()
+    const rawReports = reportsResponse.data
     const tasks = tasksResponse.data
+    
+    console.log('获取的原始报告数据:', rawReports)
     console.log('获取的任务数据:', tasks)
     
     // 构建任务ID到任务的映射
@@ -260,63 +311,86 @@ const fetchReports = async () => {
     })
     
     // 处理报告数据，确保关键字段存在
-    reports.value = reports.value.map(report => {
+    const processedReports = rawReports.map(report => {
+      // 创建报告副本，避免修改原始数据
+      const processedReport = { ...report }
+      
       // 确保task_id存在，使用正确的外键关联
-      if (!report.task_id && report.task) {
-        report.task_id = report.task
+      if (!processedReport.task_id && processedReport.task) {
+        processedReport.task_id = typeof processedReport.task === 'object' ? processedReport.task.id : processedReport.task
       }
       
-      // 不再随机生成task_id，避免ID重复问题
-      if (!report.task_id) {
-        // 从报告标题中提取任务ID
-        const idMatch = report.title && report.title.match(/任务(\d+)/) || report.title && report.title.match(/(\d+)/)
-        report.task_id = idMatch ? idMatch[1] : report.id // 使用报告ID作为备选，保证唯一性
+      // 如果仍然没有task_id，尝试从标题中提取
+      if (!processedReport.task_id && processedReport.title) {
+        const idMatch = processedReport.title.match(/任务(\d+)/) || processedReport.title.match(/(\d+)/)
+        processedReport.task_id = idMatch ? parseInt(idMatch[1]) : processedReport.id
       }
       
       // 添加任务信息到报告
-      if (report.task_id && taskMap[report.task_id]) {
-        const task = taskMap[report.task_id]
-        report.task_description = task.description
-        report.task_images = task.images || []
+      if (processedReport.task_id && taskMap[processedReport.task_id]) {
+        const task = taskMap[processedReport.task_id]
+        processedReport.task_description = task.description
+        processedReport.task_images = task.images || []
+        // 添加任务的算法信息到报告中，确保算法数量显示一致
+        processedReport.task_algorithms = task.algorithms || []
+        console.log(`任务 ${processedReport.task_id} 的算法信息:`, task.algorithms)
       }
       
       // 修正任务名称，去掉"的处理报告"后缀
-      if (report.title) {
-        report.task_name = report.title.replace(/的处理报告$/, '')
+      if (processedReport.title) {
+        processedReport.task_name = processedReport.title.replace(/的处理报告$/, '')
       } else {
-        report.task_name = `未知任务-${report.id}` // 添加报告ID确保区分
+        processedReport.task_name = `未知任务-${processedReport.id}`
       }
       
-      // 设置算法名称 - 确保每个报告都有具体的算法名称
-      if (report.algorithm && algorithmMap[report.algorithm]) {
-        // 如果有原始算法代码，直接映射
-        report.algorithm_name = algorithmMap[report.algorithm]
-      } else if (report.algorithm_name) {
-        // 已经有正确的算法名称，保留不变
-        // do nothing
-      } else {
-        // 推断算法名称
-        report.algorithm_name = inferAlgorithm(report.task_name, report.task_id)
+      // 设置算法名称
+      if (processedReport.algorithm && algorithmMap[processedReport.algorithm]) {
+        processedReport.algorithm_name = algorithmMap[processedReport.algorithm]
+      } else if (!processedReport.algorithm_name) {
+        processedReport.algorithm_name = inferAlgorithm(processedReport.task_name, processedReport.task_id)
       }
       
-      return report
+      return processedReport
     })
     
     // 处理重复的任务ID问题 - 为每个任务只保留最新的一条报告
     const taskReportMap = new Map()
-    reports.value.forEach(report => {
-      // 如果此任务ID还没有报告，或者当前报告比已存在的更新
-      if (!taskReportMap.has(report.task_id) || 
-          new Date(report.created_at) > new Date(taskReportMap.get(report.task_id).created_at)) {
+    processedReports.forEach(report => {
+      const reportTime = new Date(report.created_at)
+      const existingReport = taskReportMap.get(report.task_id)
+      
+      if (!existingReport || (reportTime.getTime() && reportTime > new Date(existingReport.created_at))) {
         taskReportMap.set(report.task_id, report)
       }
     })
     
-    // 将Map转换回数组
-    reports.value = Array.from(taskReportMap.values())
+    // 将Map转换回数组并按创建时间倒序排列
+    const finalReports = Array.from(taskReportMap.values()).sort((a, b) => {
+      const dateA = new Date(a.created_at)
+      const dateB = new Date(b.created_at)
+      return dateB - dateA // 倒序排列，最新的在前
+    })
+    
+    reports.value = finalReports
+    
+    // 更新缓存
+    dataCache.value = {
+      reports: finalReports,
+      tasks: tasks,
+      lastFetchTime: Date.now()
+    }
+    
+    console.log(`成功处理 ${finalReports.length} 条报告数据`)
+    
   } catch (error) {
     console.error('获取报告失败:', error)
-    ElMessage.error('获取报告数据失败')
+    ElMessage.error(`获取报告数据失败: ${error.message || '未知错误'}`)
+    
+    // 如果有缓存数据，在错误时使用缓存
+    if (dataCache.value.reports) {
+      reports.value = dataCache.value.reports
+      ElMessage.warning('使用缓存数据，可能不是最新的')
+    }
   } finally {
     loading.value = false
   }
@@ -661,12 +735,22 @@ const resetSearch = () => {
 
 // 添加即时搜索
 const activeSearch = ref(false)
+const searchTimeout = ref(null)
+
+// 防抖搜索函数
 const debounceSearch = () => {
   activeSearch.value = true
-  // 显示搜索正在生效
-  if (searchParams.taskId || searchParams.taskName || searchParams.algorithmName) {
-    console.log('搜索条件已更新，正在过滤结果')
+  
+  // 清除之前的定时器
+  if (searchTimeout.value) {
+    clearTimeout(searchTimeout.value)
   }
+  
+  // 设置新的定时器
+  searchTimeout.value = setTimeout(() => {
+    activeSearch.value = false
+    console.log('搜索条件已更新，正在过滤结果')
+  }, 300) // 300ms防抖
 }
 
 // 根据搜索条件过滤报告数据
@@ -677,25 +761,53 @@ const filteredReports = computed(() => {
   
   return reports.value.filter(report => {
     let matches = true
-    if (searchParams.taskId && !String(report.task_id).includes(searchParams.taskId)) {
-      matches = false
-    }
-    if (searchParams.taskName && !(report.task_name || '').toLowerCase().includes(searchParams.taskName.toLowerCase())) {
-      matches = false
-    }
-    if (searchParams.algorithmName) {
-      // 获取报告所有算法名称
-      const algorithmNames = getAlgorithmNames(report);
-      // 检查是否有算法名称包含搜索关键词
-      const hasMatchingAlgorithm = algorithmNames.some(name => 
-        name.toLowerCase().includes(searchParams.algorithmName.toLowerCase())
-      );
-      if (!hasMatchingAlgorithm) {
-      matches = false
+    
+    // 任务ID搜索 - 支持模糊匹配
+    if (searchParams.taskId) {
+      const taskIdStr = String(report.task_id || '').toLowerCase()
+      const searchTaskId = searchParams.taskId.toLowerCase()
+      if (!taskIdStr.includes(searchTaskId)) {
+        matches = false
       }
     }
+    
+    // 任务名称搜索 - 支持模糊匹配
+    if (searchParams.taskName) {
+      const taskName = (report.task_name || '').toLowerCase()
+      const searchTaskName = searchParams.taskName.toLowerCase()
+      if (!taskName.includes(searchTaskName)) {
+        matches = false
+      }
+    }
+    
+    // 算法名称搜索 - 支持模糊匹配
+    if (searchParams.algorithmName) {
+      const algorithmNames = getAlgorithmNames(report)
+      const searchAlgorithmName = searchParams.algorithmName.toLowerCase()
+      const hasMatchingAlgorithm = algorithmNames.some(name => 
+        name.toLowerCase().includes(searchAlgorithmName)
+      )
+      if (!hasMatchingAlgorithm) {
+        matches = false
+      }
+    }
+    
     return matches
   })
+})
+
+// 搜索结果统计
+const searchStats = computed(() => {
+  const total = reports.value.length
+  const filtered = filteredReports.value.length
+  const hasFilter = searchParams.taskId || searchParams.taskName || searchParams.algorithmName
+  
+  return {
+    total,
+    filtered,
+    hasFilter,
+    isFiltering: hasFilter && filtered < total
+  }
 })
 
 // 添加检查缺失报告功能
@@ -713,6 +825,17 @@ const checkAllReports = async () => {
   } finally {
     loading.value = false
   }
+}
+
+// 强制刷新数据（清除缓存）
+const forceRefresh = async () => {
+  dataCache.value = {
+    reports: null,
+    tasks: null,
+    lastFetchTime: null
+  }
+  await fetchReports()
+  ElMessage.success('数据已刷新')
 }
 </script>
 
@@ -749,12 +872,18 @@ const checkAllReports = async () => {
       <div class="dashboard-main">
         <div class="page-header">
           <h2>报告管理</h2>
-          <!-- 添加检查缺失报告按钮 -->
-          <!-- <div class="report-actions">
-            <button class="check-reports-button" @click="checkAllReports">
-              检查缺失报告
+          <div class="header-actions">
+            <div class="cache-info" v-if="dataCache.lastFetchTime">
+              <span class="cache-text">
+                数据更新时间: {{ formatDateTime(dataCache.lastFetchTime) }}
+              </span>
+            </div>
+            <button class="refresh-button" @click="forceRefresh" :disabled="loading">
+              <span v-if="loading">🔄</span>
+              <span v-else>🔄</span>
+              {{ loading ? '刷新中...' : '刷新数据' }}
             </button>
-          </div> -->
+          </div>
         </div>
         
         <!-- 搜索筛选区 -->
@@ -775,6 +904,19 @@ const checkAllReports = async () => {
             <div class="form-actions">
               <button class="reset-button" @click="resetSearch">重置</button>
               <button class="search-button">查询</button>
+            </div>
+          </div>
+          
+          <!-- 搜索结果统计 -->
+          <div class="search-stats" v-if="searchStats.hasFilter">
+            <div class="stats-info">
+              <span class="stats-text">
+                <span v-if="activeSearch" class="searching">🔍 搜索中...</span>
+                <span v-else>
+                  找到 <strong>{{ searchStats.filtered }}</strong> 条结果
+                  <span v-if="searchStats.isFiltering">（共 {{ searchStats.total }} 条）</span>
+                </span>
+              </span>
             </div>
           </div>
         </div>
@@ -835,7 +977,7 @@ const checkAllReports = async () => {
                 <td>
                   <span class="status-badge status-completed">已生成</span>
                 </td>
-                <td>{{ new Date(report.created_at).toLocaleString() }}</td>
+                <td>{{ formatDateTime(report.created_at) }}</td>
                 <td class="actions-cell">
                   <button class="view-button" @click="viewReportLog(report.id, report.task_name || report.title)" title="查看详细日志">
                     📝 日志
@@ -1451,29 +1593,57 @@ const checkAllReports = async () => {
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 16px;
 }
 
-.copy-button, .download-button {
-  background-color: transparent;
-  border: 1px solid #58a6ff;
-  color: #58a6ff;
-  padding: 4px 10px;
+.cache-info {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  color: #666;
+}
+
+.cache-text {
+  background: #f5f5f5;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+}
+
+.refresh-button {
+  background-color: #1890ff;
+  color: white;
+  border: none;
+  padding: 8px 16px;
   border-radius: 4px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: 12px;
-  transition: all 0.2s;
-}
-
-.copy-button:hover, .download-button:hover {
-  background-color: rgba(88, 166, 255, 0.1);
-}
-
-.copy-button i, .download-button i {
+  gap: 6px;
   font-size: 14px;
+  transition: all 0.3s;
+}
+
+.refresh-button:hover:not(:disabled) {
+  background-color: #40a9ff;
+}
+
+.refresh-button:disabled {
+  background-color: #d9d9d9;
+  cursor: not-allowed;
+}
+
+.refresh-button span {
+  animation: none;
+}
+
+.refresh-button:disabled span {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 /* 这部分为动态生成的内容设置样式 */
@@ -1651,5 +1821,38 @@ const checkAllReports = async () => {
   background-color: #1f6feb;
   color: white;
   border-color: #388bfd;
+}
+
+/* 搜索结果统计样式 */
+.search-stats {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.stats-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.stats-text {
+  font-size: 14px;
+  color: #666;
+}
+
+.stats-text strong {
+  color: #1890ff;
+  font-weight: 600;
+}
+
+.searching {
+  color: #1890ff;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 </style> 

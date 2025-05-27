@@ -17,43 +17,122 @@ const loading = ref({
   reports: false
 })
 
+// 添加缓存机制
+const dataCache = ref({
+  images: null,
+  tasks: null,
+  reports: null,
+  lastFetchTime: null
+})
+const CACHE_DURATION = 3 * 60 * 1000 // 3分钟缓存（仪表盘数据更新频率可以高一些）
+
+// 时间格式化函数
+const formatDateTime = (dateString) => {
+  if (!dateString) return '未知时间'
+  
+  try {
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) {
+      console.warn('无效的日期格式:', dateString)
+      return '时间格式错误'
+    }
+    return date.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  } catch (error) {
+    console.error('日期格式化错误:', error, dateString)
+    return '时间解析失败'
+  }
+}
+
+// 检查缓存是否有效
+const isCacheValid = () => {
+  if (!dataCache.value.lastFetchTime) return false
+  return Date.now() - dataCache.value.lastFetchTime < CACHE_DURATION
+}
+
 onMounted(async () => {
   await fetchData()
 })
 
 const fetchData = async () => {
-  // 获取图片数据
+  // 如果缓存有效，使用缓存数据
+  if (isCacheValid() && dataCache.value.images && dataCache.value.tasks && dataCache.value.reports) {
+    images.value = dataCache.value.images
+    tasks.value = dataCache.value.tasks
+    reports.value = dataCache.value.reports
+    console.log('使用缓存的仪表盘数据')
+    return
+  }
+
+  console.log('开始获取仪表盘数据...')
+  
+  // 并行获取所有数据
+  const fetchPromises = [
+    fetchImages(),
+    fetchTasks(),
+    fetchReports()
+  ]
+  
+  try {
+    await Promise.all(fetchPromises)
+    
+    // 更新缓存
+    dataCache.value = {
+      images: images.value,
+      tasks: tasks.value,
+      reports: reports.value,
+      lastFetchTime: Date.now()
+    }
+    
+    console.log('仪表盘数据加载完成')
+  } catch (error) {
+    console.error('获取仪表盘数据失败:', error)
+    ElMessage.error('部分数据加载失败，请刷新页面重试')
+  }
+}
+
+const fetchImages = async () => {
   loading.value.images = true
   try {
     const response = await imageService.getAll()
-    images.value = response.data
+    images.value = response.data || []
   } catch (error) {
     console.error('获取图片失败:', error)
     ElMessage.error('获取图片数据失败')
+    images.value = []
   } finally {
     loading.value.images = false
   }
-  
-  // 获取任务数据
+}
+
+const fetchTasks = async () => {
   loading.value.tasks = true
   try {
     const response = await taskService.getAll()
-    tasks.value = response.data
+    tasks.value = response.data || []
   } catch (error) {
     console.error('获取任务失败:', error)
     ElMessage.error('获取任务数据失败')
+    tasks.value = []
   } finally {
     loading.value.tasks = false
   }
-  
-  // 获取报告数据
+}
+
+const fetchReports = async () => {
   loading.value.reports = true
   try {
     const response = await reportService.getAll()
-    reports.value = response.data
+    reports.value = response.data || []
   } catch (error) {
     console.error('获取报告失败:', error)
     ElMessage.error('获取报告数据失败')
+    reports.value = []
   } finally {
     loading.value.reports = false
   }
@@ -148,7 +227,7 @@ const navigateTo = (path) => {
                   >
                     {{ task.status_display }}
                   </span>
-                  <span class="date">{{ new Date(task.created_at).toLocaleString() }}</span>
+                  <span class="date">{{ formatDateTime(task.created_at) }}</span>
                 </div>
               </div>
             </div>
@@ -166,7 +245,7 @@ const navigateTo = (path) => {
               >
                 <div class="recent-item-name">{{ report.title }}</div>
                 <div class="recent-item-info">
-                  <span class="date">{{ new Date(report.created_at).toLocaleString() }}</span>
+                  <span class="date">{{ formatDateTime(report.created_at) }}</span>
                 </div>
               </div>
             </div>

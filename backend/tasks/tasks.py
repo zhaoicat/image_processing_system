@@ -10,9 +10,26 @@ import json
 import logging
 import threading
 import glob
+import sys
 
-# 导入V2现代化处理函数
-from backend.final2.api_integration import process_images
+# 添加项目根目录到Python路径
+current_dir = os.path.dirname(os.path.abspath(__file__))
+backend_dir = os.path.dirname(current_dir)
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
+# 导入V2现代化处理函数 - 使用简单的导入方式
+def get_process_images_function():
+    """动态导入process_images函数，避免启动时的导入错误"""
+    try:
+        from final2.api_integration import process_images
+        return process_images
+    except ImportError as e:
+        logging.warning(f"无法导入process_images函数: {e}")
+        # 返回一个模拟函数，避免启动错误
+        def mock_process_images(*args, **kwargs):
+            return {"status": "error", "message": "process_images函数不可用"}
+        return mock_process_images
 
 # 使用Django配置的日志记录器
 logger = logging.getLogger(__name__)
@@ -79,6 +96,7 @@ def _process_task_async(task_data):
         
         # 调用V2处理函数 - 使用正确的路径配置
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        process_images = get_process_images_function()
         result = process_images(
             image_paths=image_paths,
             output_dir=report_dir,
@@ -218,6 +236,7 @@ def submit_task(task_data):
         
         # 调用V2处理函数 - 使用正确的路径配置
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        process_images = get_process_images_function()
         result = process_images(
             image_paths=image_paths,
             output_dir=report_dir,
