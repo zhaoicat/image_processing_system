@@ -18,13 +18,19 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from rest_framework.routers import DefaultRouter
+from tasks.views import ReportViewSet
+
+# 创建reports路由
+reports_router = DefaultRouter()
+reports_router.register(r'', ReportViewSet)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/auth/', include('users.urls')),
     path('api/images/', include('images.urls')),
     path('api/tasks/', include('tasks.urls')),
-    path('api/reports/', include('reports.urls')),
+    path('api/reports/', include(reports_router.urls)),
 ]
 
 # 在开发环境中添加媒体文件服务

@@ -11,8 +11,8 @@ def main():
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     sys.path.insert(0, BASE_DIR)
     
-    # 使用项目根目录下的settings.py
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'settings')
+    # 使用image_processing目录下的settings.py
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'image_processing.settings')
     
     execute_from_command_line(sys.argv)
 

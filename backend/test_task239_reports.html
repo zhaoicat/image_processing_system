@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>任务239报告加载测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-info {
+            background: #e6f7ff;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border: 1px solid #91d5ff;
+        }
+        .algorithm-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .algorithm-button {
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.3s;
+            position: relative;
+        }
+        .algorithm-button:hover {
+            background: #f0f0f0;
+        }
+        .algorithm-button.active {
+            background: #1890ff;
+            color: white;
+            border-color: #1890ff;
+        }
+        .algorithm-button.available::after {
+            content: '✓';
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #52c41a;
+            color: white;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .report-content {
+            border: 1px solid #ddd;
+            min-height: 500px;
+            padding: 20px;
+            background: #fafafa;
+        }
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #666;
+        }
+        .error {
+            color: #f56565;
+            background: #fed7d7;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #feb2b2;
+        }
+        .success {
+            color: #38a169;
+            background: #c6f6d5;
+            padding: 15px;
+            border-radius: 4px;
+            border: 1px solid #9ae6b4;
+            margin-bottom: 15px;
+        }
+        iframe {
+            width: 100%;
+            height: 600px;
+            border: none;
+            background: white;
+        }
+        .debug-info {
+            background: #f7f7f7;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .file-list {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border: 1px solid #e0e0e0;
+        }
+        .file-item {
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .file-item:last-child {
+            border-bottom: none;
+        }
+        .file-status {
+            display: inline-block;
+            width: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>任务239报告加载测试</h1>
+        
+        <div class="test-info">
+            <h3>测试说明</h3>
+            <p><strong>测试任务ID:</strong> 239</p>
+            <p><strong>任务算法:</strong> 图像准确度AI检测 + 图像质量AI检测 + 清晰度AI检测 + 图像纹理质量AI检测</p>
+            <p><strong>重点测试:</strong> 综合报告是否正确指向 <code>综合质量AI检测_20250527143348.html</code></p>
+        </div>
+        
+        <div class="file-list" id="fileList">
+            <h4>可用报告文件:</h4>
+            <div>正在检查文件可用性...</div>
+        </div>
+        
+        <div class="algorithm-buttons">
+            <button class="algorithm-button active" onclick="loadReport('all')">
+                综合报告
+            </button>
+            <button class="algorithm-button" onclick="loadReport('algorithm1')">
+                图像准确度AI检测
+            </button>
+            <button class="algorithm-button" onclick="loadReport('algorithm2')">
+                图像质量AI检测
+            </button>
+            <button class="algorithm-button" onclick="loadReport('algorithm3')">
+                图像纹理AI检测
+            </button>
+            <button class="algorithm-button" onclick="loadReport('algorithm4')">
+                图像清晰度AI检测
+            </button>
+        </div>
+        
+        <div class="report-content" id="reportContent">
+            <div class="loading">点击上方按钮加载报告...</div>
+        </div>
+    </div>
+
+    <script>
+        let currentAlgorithm = 'all';
+        
+        // 算法名称到文件名前缀的映射
+        const algorithmToFilePrefix = {
+            'algorithm1': '图像准确度',
+            'algorithm2': '图像质量', 
+            'algorithm3': '图像纹理',
+            'algorithm4': '图像清晰度'
+        };
+        
+        // 算法显示名称
+        const algorithmDisplayNames = {
+            'algorithm1': '图像准确度AI检测',
+            'algorithm2': '图像质量AI检测',
+            'algorithm3': '图像纹理AI检测',
+            'algorithm4': '图像清晰度AI检测'
+        };
+        
+        function setActiveButton(algorithm) {
+            // 移除所有按钮的active类
+            document.querySelectorAll('.algorithm-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // 为当前按钮添加active类
+            event.target.classList.add('active');
+            currentAlgorithm = algorithm;
+        }
+        
+        async function checkFileAvailability() {
+            const taskId = 239;
+            const timestamp = '20250527143348';
+            
+            const filesToCheck = [
+                { name: '综合质量AI检测', file: `综合质量AI检测_${timestamp}.html`, prefix: '综合质量AI检测' },
+                { name: '图像准确度', file: `图像准确度_${timestamp}.html`, prefix: '图像准确度' },
+                { name: '图像质量', file: `图像质量_${timestamp}.html`, prefix: '图像质量' },
+                { name: '图像纹理', file: `图像纹理_${timestamp}.html`, prefix: '图像纹理' },
+                { name: '图像清晰度', file: `图像清晰度_${timestamp}.html`, prefix: '图像清晰度' }
+            ];
+            
+            let fileListHtml = '<h4>可用报告文件:</h4>';
+            
+            for (const fileInfo of filesToCheck) {
+                try {
+                    const response = await fetch(`/media/reports/task_${taskId}/${fileInfo.file}`, { method: 'HEAD' });
+                    if (response.ok) {
+                        console.log(`✓ ${fileInfo.name} 文件存在`);
+                        fileListHtml += `<div class="file-item"><span class="file-status">✓</span> ${fileInfo.file} (${response.headers.get('content-length')} 字节)</div>`;
+                        
+                        // 为对应的按钮添加可用标记
+                        const buttonIndex = ['综合质量AI检测', '图像准确度', '图像质量', '图像纹理', '图像清晰度'].indexOf(fileInfo.name);
+                        if (buttonIndex >= 0) {
+                            const buttons = document.querySelectorAll('.algorithm-button');
+                            if (buttons[buttonIndex]) {
+                                buttons[buttonIndex].classList.add('available');
+                            }
+                        }
+                    } else {
+                        console.log(`✗ ${fileInfo.name} 文件不存在 (${response.status})`);
+                        fileListHtml += `<div class="file-item"><span class="file-status">✗</span> ${fileInfo.file} (不存在)</div>`;
+                    }
+                } catch (error) {
+                    console.log(`✗ ${fileInfo.name} 检查失败:`, error.message);
+                    fileListHtml += `<div class="file-item"><span class="file-status">✗</span> ${fileInfo.file} (检查失败)</div>`;
+                }
+            }
+            
+            document.getElementById('fileList').innerHTML = fileListHtml;
+        }
+        
+        async function loadReport(algorithm) {
+            setActiveButton(algorithm);
+            
+            const reportContent = document.getElementById('reportContent');
+            reportContent.innerHTML = '<div class="loading">加载中...</div>';
+            
+            try {
+                const taskId = 239; // 测试任务ID
+                const timestamp = '20250527143348';
+                let fileUrl;
+                let expectedFileName;
+                
+                if (algorithm === 'all') {
+                    // 加载综合报告 - 测试新的逻辑
+                    expectedFileName = `综合质量AI检测_${timestamp}.html`;
+                    fileUrl = `/media/reports/task_${taskId}/${expectedFileName}`;
+                } else {
+                    // 加载特定算法报告
+                    const filePrefix = algorithmToFilePrefix[algorithm];
+                    if (!filePrefix) {
+                        throw new Error(`未知的算法类型: ${algorithm}`);
+                    }
+                    expectedFileName = `${filePrefix}_${timestamp}.html`;
+                    fileUrl = `/media/reports/task_${taskId}/${expectedFileName}`;
+                }
+                
+                console.log(`尝试加载文件: ${fileUrl}`);
+                
+                const response = await fetch(fileUrl);
+                if (response.ok) {
+                    const htmlContent = await response.text();
+                    
+                    const displayName = algorithm === 'all' ? '综合报告' : algorithmDisplayNames[algorithm];
+                    
+                    // 创建iframe来显示HTML内容
+                    reportContent.innerHTML = `
+                        <div class="success">
+                            <strong>✓ 加载成功</strong><br>
+                            显示标签: ${displayName}<br>
+                            文件名: ${expectedFileName}<br>
+                            文件前缀: ${algorithm === 'all' ? '综合质量AI检测' : algorithmToFilePrefix[algorithm]}<br>
+                            <strong>重要:</strong> ${algorithm === 'all' ? '这应该是综合质量AI检测文件！' : '这是单个算法报告'}
+                        </div>
+                        <div class="debug-info">
+                            <strong>调试信息:</strong><br>
+                            算法ID: ${algorithm}<br>
+                            文件URL: ${fileUrl}<br>
+                            响应状态: ${response.status} ${response.statusText}<br>
+                            内容长度: ${htmlContent.length} 字符<br>
+                            文件大小: ${response.headers.get('content-length')} 字节
+                        </div>
+                        <h3>报告内容预览:</h3>
+                        <iframe srcdoc="${htmlContent.replace(/"/g, '&quot;')}"></iframe>
+                    `;
+                    
+                    console.log(`成功加载 ${algorithm} 报告`);
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+            } catch (error) {
+                console.error('加载报告失败:', error);
+                const displayName = algorithm === 'all' ? '综合报告' : algorithmDisplayNames[algorithm];
+                const expectedFileName = algorithm === 'all' ? 
+                    `综合质量AI检测_20250527143348.html` : 
+                    `${algorithmToFilePrefix[algorithm]}_20250527143348.html`;
+                
+                reportContent.innerHTML = `
+                    <div class="error">
+                        <h3>✗ 加载失败</h3>
+                        <p><strong>错误:</strong> ${error.message}</p>
+                        <p><strong>显示标签:</strong> ${displayName}</p>
+                        <p><strong>期望文件名:</strong> ${expectedFileName}</p>
+                        <p><strong>文件前缀:</strong> ${algorithm === 'all' ? '综合质量AI检测' : algorithmToFilePrefix[algorithm]}</p>
+                        <p>请检查文件是否存在或网络连接</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // 页面加载完成后检查文件可用性并自动加载综合报告
+        window.onload = async function() {
+            await checkFileAvailability();
+            loadReport('all');
+        };
+    </script>
+</body>
+</html> 

@@ -36,11 +36,11 @@ const algorithmMap = {
 
 // 算法名称映射（与TaskManagement.vue保持一致）
 const algorithmDisplayNames = {
-  'algorithm1': '图像准确度AI检测（ImageHash算法）',
-  'algorithm2': '图像质量AI检测（Opencv算法1）',
-  'algorithm3': '图像纹理质量AI检测（Opencv算法2）',
-  'algorithm4': '清晰度AI检测（Opencv+ScikitImage算法3）',
-  'algorithm5': '整体图像质量AI检测'
+  'algorithm1': '图像准确度AI检测',
+  'algorithm2': '图像质量AI检测',
+  'algorithm3': '图像纹理AI检测',
+  'algorithm4': '图像清晰度AI检测',
+  // 'algorithm5': '整体图像质量AI检测'
 }
 
 // 获取报告对应的所有算法
@@ -85,10 +85,10 @@ const getSelectedAlgorithmsFromReport = (report) => {
       if (bracketContent.includes('图像质量') || bracketContent.includes('OpenCV1')) {
         algorithms.push('2');
       }
-      if (bracketContent.includes('纹理质量') || bracketContent.includes('OpenCV2')) {
+      if (bracketContent.includes('图像纹理') || bracketContent.includes('纹理质量') || bracketContent.includes('OpenCV2')) {
         algorithms.push('3');
       }
-      if (bracketContent.includes('清晰度') || bracketContent.includes('OpenCV3')) {
+      if (bracketContent.includes('图像清晰度') || bracketContent.includes('清晰度') || bracketContent.includes('OpenCV3')) {
         algorithms.push('4');
       }
     }
@@ -101,10 +101,10 @@ const getSelectedAlgorithmsFromReport = (report) => {
       if (nameToCheck.includes('图像质量') || nameToCheck.includes('OpenCV1')) {
         algorithms.push('2');
       }
-      if (nameToCheck.includes('纹理质量') || nameToCheck.includes('OpenCV2')) {
+      if (nameToCheck.includes('图像纹理') || nameToCheck.includes('纹理质量') || nameToCheck.includes('OpenCV2')) {
         algorithms.push('3');
       }
-      if (nameToCheck.includes('清晰度') || nameToCheck.includes('OpenCV3')) {
+      if (nameToCheck.includes('图像清晰度') || nameToCheck.includes('清晰度') || nameToCheck.includes('OpenCV3')) {
         algorithms.push('4');
       }
     }
@@ -137,7 +137,7 @@ const getAlgorithmColor = (algorithmId) => {
     '2': '#2196f3', // 图像质量AI检测 - 蓝色
     '3': '#ff9800', // 图像纹理质量AI检测 - 橙色
     '4': '#9c27b0', // 清晰度AI检测 - 紫色
-    '5': '#f44336'  // 整体图像质量AI检测 - 红色
+    // '5': '#f44336'  // 整体图像质量AI检测 - 红色
   };
   
   // 从算法名提取ID
@@ -307,7 +307,7 @@ const fetchReports = async () => {
     reports.value.forEach(report => {
       // 如果此任务ID还没有报告，或者当前报告比已存在的更新
       if (!taskReportMap.has(report.task_id) || 
-          new Date(report.generated_at) > new Date(taskReportMap.get(report.task_id).generated_at)) {
+          new Date(report.created_at) > new Date(taskReportMap.get(report.task_id).created_at)) {
         taskReportMap.set(report.task_id, report)
       }
     })
@@ -389,62 +389,119 @@ const loadHtmlReport = async (reportId, algorithm = 'all') => {
     let reportContent = '';
     
     if (algorithm === 'all') {
-      // 加载综合报告 (summary.html)
+      // 加载综合报告 - 需要查找以"综合质量AI检测"开头的报告文件
       try {
-        // 使用相对路径通过Vite代理访问，避免CORS问题
-        const summaryUrl = `/media/reports/task_${taskId}/reports/summary.html`;
-        console.log(`尝试加载综合报告: ${summaryUrl}`);
+        // 获取该任务的所有报告，查找综合报告
+        const allReportsResponse = await reportService.getAll();
+        const taskReports = allReportsResponse.data.filter(report => 
+          (report.task_id === taskId || (report.task && report.task.id === taskId))
+        );
         
-        const summaryResponse = await fetch(summaryUrl);
-        if (summaryResponse.ok) {
-          reportContent = await summaryResponse.text();
-          console.log('成功加载综合报告');
+        console.log(`任务 ${taskId} 的所有报告:`, taskReports);
+        
+        // 查找综合报告（文件名以"综合质量AI检测"开头）
+        const comprehensiveReport = taskReports.find(report => {
+          if (report.file_path) {
+            const fileName = report.file_path.split('/').pop();
+            // 支持多种综合报告文件名格式
+            return fileName.startsWith('综合质量AI检测') || 
+                   fileName.includes('+') || // 旧格式：图像准确度+图像质量+图像纹理
+                   fileName.includes('综合') ||
+                   (fileName.includes('图像准确度') && fileName.includes('图像质量')); // 包含多个算法的组合
+          }
+          return false;
+        });
+        
+        if (comprehensiveReport) {
+          const fileName = comprehensiveReport.file_path.split('/').pop();
+          const fileUrl = `/media/reports/task_${taskId}/${fileName}`;
+          console.log(`找到综合报告文件: ${fileUrl}`);
+          
+          const fileResponse = await fetch(fileUrl);
+          if (fileResponse.ok) {
+            reportContent = await fileResponse.text();
+            console.log('成功加载综合报告');
+          } else {
+            throw new Error(`无法加载综合报告文件: ${fileResponse.status}`);
+          }
         } else {
-          throw new Error(`无法加载综合报告: ${summaryResponse.status}`);
+          throw new Error(`未找到任务 ${taskId} 的综合报告文件`);
         }
       } catch (error) {
         console.error('加载综合报告失败:', error);
         reportContent = `<div class="error-message">
           <h3>无法加载综合报告</h3>
           <p>${error.message}</p>
-          <p>可能报告文件不存在或路径不正确</p>
+          <p>可能综合报告文件不存在或路径不正确</p>
         </div>`;
       }
     } else {
-      // 加载特定算法报告 - 修正算法名称映射
-      const algorithmNames = {
-        'algorithm1': '图像准确度',
-        'algorithm2': '图像质量', 
-        'algorithm3': '图像纹理',
-        'algorithm4': '清晰度'  // 暂时保留，虽然实际可能没有这个文件
-      };
-      
-      const algorithmName = algorithmNames[algorithm];
-      if (algorithmName) {
-        try {
-          // 使用相对路径通过Vite代理访问，避免CORS问题
-          const algorithmUrl = `/media/reports/task_${taskId}/reports/algorithms/${algorithmName}.html`;
-          console.log(`尝试加载算法报告: ${algorithmUrl}`);
-          
-          const algorithmResponse = await fetch(algorithmUrl);
-          if (algorithmResponse.ok) {
-            reportContent = await algorithmResponse.text();
-            console.log(`成功加载${algorithmName}算法报告`);
-          } else {
-            throw new Error(`无法加载${algorithmName}算法报告: ${algorithmResponse.status}`);
-          }
-        } catch (error) {
-          console.error(`加载${algorithmName}算法报告失败:`, error);
-          reportContent = `<div class="error-message">
-            <h3>无法加载${algorithmName}算法报告</h3>
-            <p>${error.message}</p>
-            <p>请查看综合报告获取完整信息</p>
-          </div>`;
+      // 对于特定算法，尝试根据文件名前缀匹配对应的报告文件
+      try {
+        // 定义算法名称到文件名前缀的映射
+        const algorithmToFilePrefix = {
+          'algorithm1': '图像准确度',
+          'algorithm2': '图像质量', 
+          'algorithm3': '图像纹理',
+          'algorithm4': '图像清晰度'
+        };
+        
+        const filePrefix = algorithmToFilePrefix[algorithm];
+        if (!filePrefix) {
+          throw new Error(`未知的算法类型: ${algorithm}`);
         }
-      } else {
+        
+        console.log(`尝试加载算法 ${algorithm} 的报告，文件前缀: ${filePrefix}`);
+        
+        // 尝试获取该任务目录下所有HTML文件，找到匹配前缀的文件
+        const taskDirUrl = `/media/reports/task_${taskId}/`;
+        
+        // 先尝试直接构造可能的文件名（新格式）
+        const possibleFileNames = [
+          `${filePrefix}_*.html`, // 通配符，实际需要通过API获取
+        ];
+        
+        // 由于前端无法直接列出目录，我们需要通过API获取该任务的所有报告
+        // 然后找到匹配的文件名
+        const allReportsResponse = await reportService.getAll();
+        const taskReports = allReportsResponse.data.filter(report => 
+          (report.task_id === taskId || (report.task && report.task.id === taskId))
+        );
+        
+        console.log(`任务 ${taskId} 的所有报告:`, taskReports);
+        
+        // 在所有报告中找到文件名包含指定前缀的报告
+        const matchingReport = taskReports.find(report => {
+          if (report.file_path) {
+            const fileName = report.file_path.split('/').pop();
+            return fileName.startsWith(filePrefix);
+          }
+          return false;
+        });
+        
+        if (matchingReport) {
+          const fileName = matchingReport.file_path.split('/').pop();
+          const fileUrl = `/media/reports/task_${taskId}/${fileName}`;
+          console.log(`找到匹配的算法报告文件: ${fileUrl}`);
+          
+          const fileResponse = await fetch(fileUrl);
+          if (fileResponse.ok) {
+            reportContent = await fileResponse.text();
+            console.log(`成功加载算法 ${algorithm} 的报告`);
+          } else {
+            throw new Error(`无法加载算法报告文件: ${fileResponse.status}`);
+          }
+        } else {
+          throw new Error(`未找到算法 ${algorithm} 对应的报告文件`);
+        }
+        
+      } catch (error) {
+        console.error(`加载算法 ${algorithm} 报告失败:`, error);
         reportContent = `<div class="error-message">
-          <h3>未知算法类型</h3>
-          <p>算法 ${algorithm} 不被支持</p>
+          <h3>算法报告暂不可用</h3>
+          <p>${error.message}</p>
+          <p>可能该算法的报告文件不存在，请查看综合报告获取完整信息</p>
+          <p>点击"综合报告"标签查看完整的质量检测结果</p>
         </div>`;
       }
     }
@@ -457,7 +514,7 @@ const loadHtmlReport = async (reportId, algorithm = 'all') => {
       reportContent = reportContent.replace(
         /src=["'](?!https?:\/\/)(?!\/)((?:\.\/|\.\.\/)*)?([^"']+)["']/g, 
         (match, prefix, path) => {
-          const newUrl = `/media/reports/task_${taskId}/reports/${path}`;
+          const newUrl = `/media/reports/task_${taskId}/${path}`;
           console.log(`src路径替换: ${match} -> src="${newUrl}"`);
           return `src="${newUrl}"`;
         }
@@ -467,7 +524,7 @@ const loadHtmlReport = async (reportId, algorithm = 'all') => {
       reportContent = reportContent.replace(
         /href=["'](?!https?:\/\/)(?!\/)((?:\.\/|\.\.\/)*)?([^"']+)["']/g, 
         (match, prefix, path) => {
-          const newUrl = `/media/reports/task_${taskId}/reports/${path}`;
+          const newUrl = `/media/reports/task_${taskId}/${path}`;
           console.log(`href路径替换: ${match} -> href="${newUrl}"`);
           return `href="${newUrl}"`;
         }
@@ -693,11 +750,11 @@ const checkAllReports = async () => {
         <div class="page-header">
           <h2>报告管理</h2>
           <!-- 添加检查缺失报告按钮 -->
-          <div class="report-actions">
+          <!-- <div class="report-actions">
             <button class="check-reports-button" @click="checkAllReports">
               检查缺失报告
             </button>
-          </div>
+          </div> -->
         </div>
         
         <!-- 搜索筛选区 -->
@@ -778,17 +835,17 @@ const checkAllReports = async () => {
                 <td>
                   <span class="status-badge status-completed">已生成</span>
                 </td>
-                <td>{{ new Date(report.generated_at).toLocaleString() }}</td>
+                <td>{{ new Date(report.created_at).toLocaleString() }}</td>
                 <td class="actions-cell">
                   <button class="view-button" @click="viewReportLog(report.id, report.task_name || report.title)" title="查看详细日志">
                     📝 日志
                   </button>
-                  <button class="view-button" @click="downloadReport(report.id)" title="下载报告">
+                  <!-- <button class="view-button" @click="downloadReport(report.id)" title="下载报告">
                     📥 下载
                   </button>
                   <button class="delete-button" @click="deleteReport(report.id)">
                     删除
-                  </button>
+                  </button> -->
                 </td>
               </tr>
             </tbody>
@@ -856,14 +913,14 @@ const checkAllReports = async () => {
                     :class="{ 'active': currentAlgorithm === 'algorithm3' }"
                     @click="switchAlgorithm('algorithm3')"
                   >
-                    图像纹理质量AI检测
+                    图像纹理AI检测
                   </button>
                   <button 
                     class="algorithm-button" 
                     :class="{ 'active': currentAlgorithm === 'algorithm4' }"
                     @click="switchAlgorithm('algorithm4')"
                   >
-                    清晰度AI检测
+                    图像清晰度AI检测
                   </button>
                 </div>
               </div>

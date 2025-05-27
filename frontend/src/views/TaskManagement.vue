@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed, reactive, onBeforeUnmount, watch } from 'vue'
+import { ref, onMounted, computed, reactive, onBeforeUnmount, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { taskService, imageService } from '../services/api'
@@ -159,7 +159,7 @@ const algorithmDisplayNames = {
   'algorithm2': '图像质量AI检测（Opencv算法1）',
   'algorithm3': '图像纹理质量AI检测（Opencv算法2）',
   'algorithm4': '清晰度AI检测（Opencv+ScikitImage算法3）',
-  'algorithm5': '整体图像质量AI检测'
+  // 'algorithm5': '整体图像质量AI检测'
 }
 
 // 生成任务名称
@@ -182,6 +182,20 @@ const checkBackendConnection = async () => {
     return true
   } catch (error) {
     console.error('后端连接检测失败:', error)
+    
+    // 检查是否是认证错误
+    if (error.response?.status === 401) {
+      console.log('检测到认证错误，清除token并跳转到登录页')
+      authStore.logout()
+      router.push('/login')
+      ElMessage.error({
+        message: 'Token已过期，请重新登录',
+        duration: 5000,
+        showClose: true
+      })
+      return false
+    }
+    
     if (error.code === 'ECONNREFUSED' || error.message.includes('ECONNREFUSED')) {
       ElMessage.error({
         message: '无法连接到后端服务器，请确认服务器已启动',
@@ -220,6 +234,16 @@ const fetchData = async () => {
     images.value = imagesResponse.data
   } catch (error) {
     console.error('获取数据失败:', error)
+    
+    // 检查是否是认证错误
+    if (error.response?.status === 401) {
+      console.log('获取数据时检测到认证错误，清除token并跳转到登录页')
+      authStore.logout()
+      router.push('/login')
+      ElMessage.error('Token已过期，请重新登录')
+      return
+    }
+    
     ElMessage.error('获取数据失败')
   } finally {
     loading.value = false
@@ -243,19 +267,10 @@ const createTask = async () => {
   }
   
   createLoading.value = true
+  console.log('🚀 开始创建任务，当前对话框状态:', createDialogVisible.value)
   
   try {
-    // 首先检测后端连接
-    const connectionOk = await checkBackendConnection()
-    if (!connectionOk) {
-      ElMessage.error('后端连接失败，无法创建任务')
-      return
-    }
-  
-    // 添加超时控制
-    const timeout = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('请求超时，请检查网络连接')), 30000) // 30秒超时
-    })
+    console.log('🚀 开始创建任务...')
     
     // 将算法ID数组转换为带注释的单个算法ID
     // 当前选择的算法数字组合（如"12"代表算法1和2）
@@ -273,7 +288,7 @@ const createTask = async () => {
       images: newTask.value.images
     }
     
-    console.log('发送创建任务请求:', taskData)
+    console.log('📤 发送创建任务请求:', taskData)
     
     // 显示正在创建的提示
     ElMessage.info({
@@ -281,71 +296,100 @@ const createTask = async () => {
       duration: 2000
     })
     
-    // 使用Promise.race来实现超时控制
-    await Promise.race([
-      taskService.create(taskData),
-      timeout
-    ])
-    
-    ElMessage.success('任务创建成功')
+    // 立即关闭对话框，不等待请求完成
+    console.log('🔄 立即关闭对话框，当前状态:', createDialogVisible.value)
     createDialogVisible.value = false
+    console.log('✅ 对话框状态已设置为false:', createDialogVisible.value)
+    
+    // 重置表单
     resetNewTask()
+    console.log('✅ 表单已重置')
     
-    // 延迟一下再刷新数据，确保后端已经处理完成
-    setTimeout(async () => {
-      await fetchData()
-    }, 500)
+    // 使用nextTick确保DOM更新
+    await nextTick()
+    console.log('✅ DOM更新完成，对话框应该已关闭')
     
-  } catch (error) {
-    console.error('创建任务失败:', error)
+    // 立即刷新任务列表，显示新创建的任务（状态为pending）
+    console.log('🔄 立即刷新任务列表...')
+    await fetchData()
+    console.log('✅ 任务列表已刷新')
     
-    // 更详细的错误处理
-    if (error.message === '请求超时，请检查网络连接') {
-      ElMessage.error({
-        message: '创建任务超时，请检查网络连接后重试',
-        duration: 5000,
-        showClose: true
-      })
-    } else if (error.code === 'NETWORK_ERROR' || error.message === 'Network Error') {
-      ElMessage.error({
-        message: '网络连接失败，请检查网络状态',
-        duration: 5000,
-        showClose: true
-      })
-    } else if (error.response) {
-      // 服务器响应了错误
-      const status = error.response.status
-      const data = error.response.data
+    // 发送请求（异步，不阻塞UI）
+    taskService.create(taskData).then(response => {
+      console.log('✅ 任务创建成功，响应:', response.data)
+      console.log('✅ 响应状态码:', response.status)
       
-      if (status === 401) {
-        ElMessage.error('认证失败，请重新登录')
-        authStore.logout()
-        router.push('/login')
-      } else if (status === 403) {
-        ElMessage.error('权限不足，无法创建任务')
-      } else if (status === 500) {
-        ElMessage.error({
-          message: '服务器内部错误，请联系管理员',
-          duration: 5000,
-          showClose: true
+      if (response.status === 201 || response.status === 200) {
+        ElMessage.success('任务创建成功')
+        
+        // 再次刷新任务列表，获取最新状态
+        console.log('🔄 再次刷新任务列表...')
+        fetchData().then(() => {
+          console.log('✅ 任务列表已再次刷新')
         })
       } else {
+        console.error('❌ 意外的响应状态码:', response.status)
+        ElMessage.error(`创建任务失败: 意外的响应状态码 ${response.status}`)
+      }
+    }).catch(error => {
+      console.error('❌ 创建任务失败:', error)
+      console.error('❌ 错误类型:', typeof error)
+      console.error('❌ 错误详情:', error.response?.data || error.message)
+      
+      // 错误处理
+      if (error.response) {
+        const status = error.response.status
+        const data = error.response.data
+        
+        console.error('❌ 服务器错误响应:', { status, data })
+        
+        if (status === 401) {
+          console.log('创建任务时检测到认证错误，清除token并跳转到登录页')
+          ElMessage.error('Token已过期，请重新登录')
+          authStore.logout()
+          router.push('/login')
+        } else if (status === 403) {
+          ElMessage.error('权限不足，无法创建任务')
+        } else if (status === 500) {
+          ElMessage.error({
+            message: '服务器内部错误，请联系管理员',
+            duration: 5000,
+            showClose: true
+          })
+        } else {
+          ElMessage.error({
+            message: `创建任务失败 (${status}): ${JSON.stringify(data)}`,
+            duration: 5000,
+            showClose: true
+          })
+        }
+      } else {
+        // 其他未知错误
         ElMessage.error({
-          message: `创建任务失败 (${status}): ${JSON.stringify(data)}`,
+          message: `创建任务失败: ${error.message || '未知错误'}`,
           duration: 5000,
           showClose: true
         })
       }
-    } else {
-      // 其他未知错误
-      ElMessage.error({
-        message: `创建任务失败: ${error.message || '未知错误'}`,
-        duration: 5000,
-        showClose: true
-      })
-    }
+      
+      // 如果创建失败，再次刷新任务列表
+      fetchData()
+    })
+    
+  } catch (error) {
+    console.error('❌ 创建任务流程失败:', error)
+    ElMessage.error({
+      message: `创建任务失败: ${error.message || '未知错误'}`,
+      duration: 5000,
+      showClose: true
+    })
+    
+    // 如果是同步错误，关闭对话框
+    createDialogVisible.value = false
+    
   } finally {
     createLoading.value = false
+    console.log('🏁 创建任务流程结束，最终对话框状态:', createDialogVisible.value)
   }
 }
 
@@ -441,7 +485,7 @@ const getAlgorithmColor = (algorithmId) => {
     '2': '#2196f3', // 图像质量AI检测 - 蓝色
     '3': '#ff9800', // 图像纹理质量AI检测 - 橙色
     '4': '#9c27b0', // 清晰度AI检测 - 紫色
-    '5': '#f44336'  // 整体图像质量AI检测 - 红色
+    // '5': '#f44336'  // 整体图像质量AI检测 - 红色
   };
   
   // 从算法名提取ID
@@ -817,6 +861,23 @@ const showTaskInfo = (task) => {
     showClose: true
   });
 }
+
+const testDialogClose = () => {
+  console.log('🧪 测试对话框功能')
+  console.log('🧪 当前对话框状态:', createDialogVisible.value)
+  
+  if (createDialogVisible.value) {
+    console.log('🧪 对话框已打开，测试关闭功能')
+    createDialogVisible.value = false
+    console.log('🧪 对话框状态设置为false:', createDialogVisible.value)
+    ElMessage.success('对话框已关闭')
+  } else {
+    console.log('🧪 对话框已关闭，测试打开功能')
+    createDialogVisible.value = true
+    console.log('🧪 对话框状态设置为true:', createDialogVisible.value)
+    ElMessage.info('对话框已打开')
+  }
+}
 </script>
 
 <template>
@@ -853,13 +914,20 @@ const showTaskInfo = (task) => {
         <div class="page-header">
           <h2>任务管理</h2>
           <div class="header-actions">
-            <button 
+            <!-- <button 
               class="test-connection-button" 
               @click="checkBackendConnection"
               title="测试后端服务器连接状态"
             >
               测试连接
-            </button>
+            </button> -->
+            <!-- <button 
+              class="test-button" 
+              @click="testDialogClose"
+              title="测试对话框关闭功能"
+            >
+              测试对话框
+            </button> -->
             <button class="create-button" @click="openCreateDialog">创建任务</button>
           </div>
         </div>

@@ -3,7 +3,6 @@ import { RouterView } from 'vue-router'
 import { onMounted } from 'vue'
 import { useAuthStore } from './stores/auth'
 import axios from 'axios'
-import TokenCleanupModal from './components/TokenCleanupModal.vue'
 
 const authStore = useAuthStore()
 
@@ -18,15 +17,15 @@ onMounted(() => {
   } else {
     console.log('应用启动时无Token')
   }
+  
+  // 设置axios拦截器处理token过期
+  authStore.setupAxiosInterceptors()
 })
 </script>
 
 <template>
   <div class="app-container">
     <RouterView />
-    
-    <!-- 添加Token清理模态框，组件内部会决定是否显示 -->
-    <TokenCleanupModal />
   </div>
 </template>
 

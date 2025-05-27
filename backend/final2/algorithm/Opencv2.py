@@ -11,7 +11,7 @@ def calculate_texture_complexity(image):
     contrast = np.sum((hist * np.arange(256)) ** 2)
     entropy = -np.sum(hist[hist > 0] * np.log2(hist[hist > 0] + 1e-6))
 
-    texture_score = (contrast + entropy) / (256**2 + 256)
+    texture_score = (contrast + entropy) / (256 ** 2 + 256)
     return min(texture_score, 1.0)
 
 
@@ -21,12 +21,37 @@ def check_element_completeness(image, template_path=None):
         template = cv2.imread(template_path, cv2.IMREAD_GRAYSCALE)
         if template is None:
             return 0.0
-        res = cv2.matchTemplate(
-            cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), template, cv2.TM_CCOEFF_NORMED
-        )
-        return float(res.max())
+        
+        # 转换图像为灰度
+        gray_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        
+        # 检查尺寸，确保模板不大于图像
+        img_h, img_w = gray_image.shape
+        temp_h, temp_w = template.shape
+        
+        # 如果模板比图像大，调整模板尺寸
+        if temp_h > img_h or temp_w > img_w:
+            # 计算缩放比例，保持宽高比
+            scale_h = img_h / temp_h if temp_h > img_h else 1.0
+            scale_w = img_w / temp_w if temp_w > img_w else 1.0
+            scale = min(scale_h, scale_w, 0.8)  # 最大缩放到80%
+            
+            new_w = int(temp_w * scale)
+            new_h = int(temp_h * scale)
+            template = cv2.resize(template, (new_w, new_h))
+        
+        # 如果调整后的模板仍然太大或太小，返回默认值
+        temp_h, temp_w = template.shape
+        if temp_h > img_h or temp_w > img_w or temp_h < 10 or temp_w < 10:
+            return 0.5  # 返回中等完整性分数
+        
+        try:
+            res = cv2.matchTemplate(gray_image, template, cv2.TM_CCOEFF_NORMED)
+            return float(res.max())
+        except cv2.error as e:
+            print(f"模板匹配错误: {e}")
+            return 0.5  # 返回中等完整性分数
     return 1.0
-
 
 def calculate_quality_metrics(image):
     """计算图像质量指标（清晰度、噪声）优化版"""
@@ -45,60 +70,63 @@ def calculate_quality_metrics(image):
 
     return min(max(quality_score, 0), 1)
 
+#旧代码，暂保留
+#def calculate_quality_metrics(image):
+    #"""计算图像质量指标（清晰度、噪声）"""
+    #gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-# 旧代码，暂保留
-# def calculate_quality_metrics(image):
-# """计算图像质量指标（清晰度、噪声）"""
-# gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    #laplacian = cv2.Laplacian(gray, cv2.CV_64F).var()
+    #noise = gray.std()
 
-# laplacian = cv2.Laplacian(gray, cv2.CV_64F).var()
-# noise = gray.std()
+    #clarity_base = min(laplacian / 150, 1.0)
+    #noise_factor = max(1 - (noise / 30), 0)
+    #quality_score = clarity_base * noise_factor
 
-# clarity_base = min(laplacian / 150, 1.0)
-# noise_factor = max(1 - (noise / 30), 0)
-# quality_score = clarity_base * noise_factor
-
-# return min(max(quality_score, 0), 1)
+    #return min(max(quality_score, 0), 1)
 
 
-def evaluate_fashion_image(template_path, image_path):
+def evaluate_fashion_image(template_path,image_path):
     """综合评估函数（四级质量等级）"""
     img = cv2.imdecode(np.fromfile(image_path, dtype=np.uint8), -1)
     if img is None:
         raise FileNotFoundError(f"Image not found: {image_path}")
 
     # 初始化评分字典
-    scores = {"texture": 0.0, "completeness": 0.0, "quality": 0.0}
+    scores = {
+        'texture': 0.0,
+        'completeness': 0.0,
+        'quality': 0.0
+    }
 
     # 计算各维度得分
-    scores["texture"] = calculate_texture_complexity(img)
-    scores["completeness"] = check_element_completeness(img, template_path)
-    scores["quality"] = calculate_quality_metrics(img)
+    scores['texture'] = calculate_texture_complexity(img)
+    scores['completeness'] = check_element_completeness(img, template_path)
+    scores['quality'] = calculate_quality_metrics(img)
 
     # 加权综合评分
-    weights = {"texture": 0.3, "completeness": 0.3, "quality": 0.4}
+    weights = {'texture': 0.3, 'completeness': 0.3, 'quality': 0.4}
     overall = sum(scores[k] * weights[k] for k in weights)
 
     # 四级质量等级判断
     grade_thresholds = {
-        "A": 0.9,  # 优秀（接近完美）
-        "B": 0.7,  # 良好（可接受）
-        "C": 0.5,  # 合格（需改进）
-        "D": 0.0,  # 不可用（严重缺陷）
+        'A': 0.9,  # 优秀（接近完美）
+        'B': 0.7,  # 良好（可接受）
+        'C': 0.5,  # 合格（需改进）
+        'D': 0.0  # 不可用（严重缺陷）
     }
 
     # 动态确定等级
-    quality_grade = "D"
+    quality_grade = 'D'
     for grade, threshold in grade_thresholds.items():
         if overall >= threshold:
             quality_grade = grade
             break
 
     # 人工审核逻辑
-    needs_review = quality_grade in ("C", "D")  # C/D级需要人工介入
+    needs_review = quality_grade in ('C', 'D')  # C/D级需要人工介入
 
     # 打印质量评估报告
-    """
+    '''
     print("=" * 50)
     print(f"图像质量评估报告 ({image_path})")
     print("-" * 50)
@@ -128,13 +156,19 @@ def evaluate_fashion_image(template_path, image_path):
         print("- 🔴 重点提升画面质量")
     else:
         print("- 🟢 无需人工干预，可直接使用")
-    """
+    '''
+
+
+
+
 
     return {
-        "texture": scores["texture"],
-        "completeness": scores["completeness"],
-        "quality": scores["quality"],
-        "overall": overall,
-        "quality_grade": quality_grade,
-        "needs_human_review": needs_review,
+        'texture': scores['texture'],
+        'completeness': scores['completeness'],
+        'quality': scores['quality'],
+        'overall': overall,
+        'quality_grade': quality_grade,
+        'needs_human_review': needs_review
     }
+
+

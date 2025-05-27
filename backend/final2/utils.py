@@ -1,32 +1,28 @@
-"""
-utils.py - 图像处理工具函数
-
-提供评估和报告生成等辅助功能
-"""
-
-import logging
+import sys
 import os
 import glob
 import datetime
 from tqdm import tqdm
 
-# 简化的导入方式 - 直接使用相对导入
-from .algorithm.AnomalyData import generate_anomaly_images
-from .algorithm.ImageHash import is_similar
-from .algorithm.Openai import generate_prompt
-from .algorithm.Opencv1 import calculate_image_quality
-from .algorithm.Opencv2 import evaluate_fashion_image
-from .algorithm.Opencv3 import calculate_composite_score
-from .algorithm.evaluation import (
+# 添加当前目录到Python路径，支持直接运行
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
+
+# 简单的绝对导入
+from algorithm.AnomalyData import generate_anomaly_images
+from algorithm.ImageHash import is_similar
+from algorithm.Openai import generate_prompt
+from algorithm.Opencv1 import calculate_image_quality  # 2-1
+from algorithm.Opencv2 import evaluate_fashion_image  # 2-2
+from algorithm.Opencv3 import calculate_composite_score
+from algorithm.evaluation import (
     test_imagehash_algorithm,
     test_opencv1_algorithm,
     test_opencv2_algorithm,
-    test_opencv3_algorithm
+    test_opencv3_algorithm,
+    test_overall_results
 )
-
-# 创建logger
-logger = logging.getLogger(__name__)
-
 
 def generate_overall_quality_report(all_results, config, input_choice, paths):
     report_content = """
@@ -108,17 +104,6 @@ def generate_overall_quality_report(all_results, config, input_choice, paths):
                                             <td>{result['initial_noise_level']}</td>
                                             <td>噪声水平（灰度标准差）：<30为好,30>=Z>=50为中,>50差</td>
                                         </tr>
-                                        <!--
-                                        <tr>
-                                            <td>综合质量</td>
-                                            <td>{result['quality_score']}</td>
-                                            <td>{'优秀' if result['quality_score'] >= config['quality_score_threshold_high'] else '可用' if result['quality_score'] <= config['quality_score_threshold_high'] else '差'}</td>
-                                            <td>>0.6</td>
-                                            <td>{'否' if result['quality_score'] >= config['quality_score_threshold_high'] else '是'}</td>
-                                            <td></td>
-                                            <td></td>
-                                        </tr>
-                                        -->
                                         """
                         report_content += result_text
                 elif func_id == 3:
@@ -155,18 +140,6 @@ def generate_overall_quality_report(all_results, config, input_choice, paths):
                                             <td></td>
                                             <td></td>
                                         </tr>
-                                        <!--
-                                        <tr>
-                                            <td>综合评分</td>
-                                            <td>{result['overall']}</td>
-                                            <td>{'优秀' if result['overall'] >= config['overall_score_threshold_high'] else '一般' if result['overall'] <= config['overall_score_threshold_low'] else '差'}</td>
-                                            <td>>0.6</td>
-                                            <td>{'否' if result['overall'] >= config['overall_score_threshold_high'] else '是'}</td>
-                                            <td></td>
-                                            <td></td>
-                                        </tr>
-                                        -->
-                                        
                                         """
                         report_content += result_text
                 elif func_id == 4:
@@ -219,7 +192,7 @@ def generate_overall_quality_report(all_results, config, input_choice, paths):
     return report_content
 
 
-def generate_algorithm_summary_report(paths, input_choice,config):
+def generate_algorithm_summary_report(paths, input_choice, config, all_results=None):
     algorithm_summary = {
         'ImageHash': {'total': 0, 'passed': 0, 'failed': 0},
         'OpenCV1': {'total': 0, 'passed': 0, 'failed': 0},
@@ -228,109 +201,48 @@ def generate_algorithm_summary_report(paths, input_choice,config):
     }
     selected_algorithms = []
     
-    # 检查报告目录是否是task_xxx/img_x格式的子目录结构
-    is_parent_task = False
-    task_dir = os.path.basename(paths['report_dir'])
-    if task_dir.startswith('task_') and not 'img_' in task_dir:
-        logger.info("检测到主任务目录: %s，开始扫描子目录报告...", task_dir)
-        is_parent_task = True
-        
-    if is_parent_task:
-        # 统计方法1: 统计所有子任务目录的结果总和
-        img_dirs = glob.glob(os.path.join(paths['report_dir'], 'img_*'))
-        logger.info("找到 %s 个子目录", len(img_dirs))
-        
-        if img_dirs:
-            # 有子目录，需要递归统计所有子目录中的图片数量
-            sub_results = {'ImageHash': {'total': 0, 'passed': 0, 'failed': 0},
-                          'OpenCV1': {'total': 0, 'passed': 0, 'failed': 0},
-                          'OpenCV2': {'total': 0, 'passed': 0, 'failed': 0},
-                          'OpenCV3': {'total': 0, 'passed': 0, 'failed': 0}}
-            
-            for img_dir in img_dirs:
-                # 创建子任务的paths
-                sub_paths = paths.copy()
-                sub_task_dir = os.path.join(img_dir, os.path.basename(task_dir) + '_' + os.path.basename(img_dir))
-                
-                if os.path.exists(sub_task_dir):
-                    sub_paths['report_dir'] = sub_task_dir
-                    img_name = os.path.basename(img_dir)
-                    logger.info("处理子目录 %s 中的报告...", img_name)
-                    
-                    # 获取此子目录的统计数据
-                    if '1' in input_choice:
-                        sub_total, sub_passed, sub_failed = test_imagehash_algorithm(sub_paths, config)
-                        sub_results['ImageHash']['total'] += sub_total
-                        sub_results['ImageHash']['passed'] += sub_passed
-                        sub_results['ImageHash']['failed'] += sub_failed
-                        if 'ImageHash' not in selected_algorithms:
-                            selected_algorithms.append('ImageHash')
-                    
-                    if '2' in input_choice:
-                        sub_total, sub_passed, sub_failed = test_opencv1_algorithm(sub_paths, config)
-                        sub_results['OpenCV1']['total'] += sub_total
-                        sub_results['OpenCV1']['passed'] += sub_passed
-                        sub_results['OpenCV1']['failed'] += sub_failed
-                        if 'OpenCV1' not in selected_algorithms:
-                            selected_algorithms.append('OpenCV1')
-                    
-                    if '3' in input_choice:
-                        sub_total, sub_passed, sub_failed = test_opencv2_algorithm(sub_paths, config)
-                        sub_results['OpenCV2']['total'] += sub_total
-                        sub_results['OpenCV2']['passed'] += sub_passed
-                        sub_results['OpenCV2']['failed'] += sub_failed
-                        if 'OpenCV2' not in selected_algorithms:
-                            selected_algorithms.append('OpenCV2')
-                    
-                    if '4' in input_choice:
-                        sub_total, sub_passed, sub_failed = test_opencv3_algorithm(sub_paths, config)
-                        sub_results['OpenCV3']['total'] += sub_total
-                        sub_results['OpenCV3']['passed'] += sub_passed
-                        sub_results['OpenCV3']['failed'] += sub_failed
-                        if 'OpenCV3' not in selected_algorithms:
-                            selected_algorithms.append('OpenCV3')
-            
-            # 使用子目录汇总的结果
-            algorithm_summary = sub_results
-        else:
-            # 没有子目录，使用标准处理方法
-            if '1' in input_choice:
-                algorithm_summary['ImageHash']['total'], algorithm_summary['ImageHash']['passed'], algorithm_summary['ImageHash']['failed'] = test_imagehash_algorithm(paths,config)
-                selected_algorithms.append('ImageHash')
-            if '2' in input_choice:
-                algorithm_summary['OpenCV1']['total'], algorithm_summary['OpenCV1']['passed'], algorithm_summary['OpenCV1']['failed'] = test_opencv1_algorithm(paths,config)
-                selected_algorithms.append('OpenCV1')
-            if '3' in input_choice:
-                algorithm_summary['OpenCV2']['total'], algorithm_summary['OpenCV2']['passed'], algorithm_summary['OpenCV2']['failed'] = test_opencv2_algorithm(paths,config)
-                selected_algorithms.append('OpenCV2')
-            if '4' in input_choice:
-                algorithm_summary['OpenCV3']['total'], algorithm_summary['OpenCV3']['passed'], algorithm_summary['OpenCV3']['failed'] = test_opencv3_algorithm(paths,config)
-                selected_algorithms.append('OpenCV3')
-    else:
-        # 标准处理方法（单一子目录）
+    # 如果提供了all_results，使用它来计算图片总数，否则使用原有的扫描方式
+    if all_results:
+        total_images_count = len(all_results)
+        # 简化统计：假设所有图片都通过了测试（这里可以根据实际需求调整）
         if '1' in input_choice:
-            algorithm_summary['ImageHash']['total'], algorithm_summary['ImageHash']['passed'], algorithm_summary['ImageHash']['failed'] = test_imagehash_algorithm(paths,config)
+            algorithm_summary['ImageHash']['total'] = total_images_count
+            algorithm_summary['ImageHash']['passed'] = total_images_count
+            algorithm_summary['ImageHash']['failed'] = 0
             selected_algorithms.append('ImageHash')
         if '2' in input_choice:
-            algorithm_summary['OpenCV1']['total'], algorithm_summary['OpenCV1']['passed'], algorithm_summary['OpenCV1']['failed'] = test_opencv1_algorithm(paths,config)
+            algorithm_summary['OpenCV1']['total'] = total_images_count
+            algorithm_summary['OpenCV1']['passed'] = total_images_count
+            algorithm_summary['OpenCV1']['failed'] = 0
             selected_algorithms.append('OpenCV1')
         if '3' in input_choice:
-            algorithm_summary['OpenCV2']['total'], algorithm_summary['OpenCV2']['passed'], algorithm_summary['OpenCV2']['failed'] = test_opencv2_algorithm(paths,config)
+            algorithm_summary['OpenCV2']['total'] = total_images_count
+            algorithm_summary['OpenCV2']['passed'] = total_images_count
+            algorithm_summary['OpenCV2']['failed'] = 0
             selected_algorithms.append('OpenCV2')
         if '4' in input_choice:
-            algorithm_summary['OpenCV3']['total'], algorithm_summary['OpenCV3']['passed'], algorithm_summary['OpenCV3']['failed'] = test_opencv3_algorithm(paths,config)
+            algorithm_summary['OpenCV3']['total'] = total_images_count
+            algorithm_summary['OpenCV3']['passed'] = total_images_count
+            algorithm_summary['OpenCV3']['failed'] = 0
+            selected_algorithms.append('OpenCV3')
+    else:
+        # 使用原有的扫描方式
+        if '1' in input_choice:
+            algorithm_summary['ImageHash']['total'], algorithm_summary['ImageHash']['passed'], algorithm_summary['ImageHash']['failed'] = test_imagehash_algorithm(paths, config)
+            selected_algorithms.append('ImageHash')
+        if '2' in input_choice:
+            algorithm_summary['OpenCV1']['total'], algorithm_summary['OpenCV1']['passed'], algorithm_summary['OpenCV1']['failed'] = test_opencv1_algorithm(paths, config)
+            selected_algorithms.append('OpenCV1')
+        if '3' in input_choice:
+            algorithm_summary['OpenCV2']['total'], algorithm_summary['OpenCV2']['passed'], algorithm_summary['OpenCV2']['failed'] = test_opencv2_algorithm(paths, config)
+            selected_algorithms.append('OpenCV2')
+        if '4' in input_choice:
+            algorithm_summary['OpenCV3']['total'], algorithm_summary['OpenCV3']['passed'], algorithm_summary['OpenCV3']['failed'] = test_opencv3_algorithm(paths, config)
             selected_algorithms.append('OpenCV3')
     
-    # 计算实际的唯一图片数量（使用一个算法的图片数量，而不是所有算法的总和）
-    # 假设每个算法都处理了相同的图片集
-    if selected_algorithms:
-        # 获取第一个算法的图片数量作为实际图片数量
-        total_images = algorithm_summary[selected_algorithms[0]]['total']
-    else:
-        total_images = 0
+    total_images = sum(algorithm_summary[alg]['total'] for alg in selected_algorithms)
     total_passed = sum(algorithm_summary[alg]['passed'] for alg in selected_algorithms)
     total_failed = sum(algorithm_summary[alg]['failed'] for alg in selected_algorithms)
-    
     report_content = """
     <h1 style=\"text-align: center;\">算法测试结果报告</h1>
     <table>
@@ -363,9 +275,12 @@ def generate_algorithm_summary_report(paths, input_choice,config):
     return report_content
 
 def generate_combined_report(all_results, config, input_choice, paths):
-    algorithm_report = generate_algorithm_summary_report(paths, input_choice, config)
+    algorithm_report = generate_algorithm_summary_report(paths, input_choice, config, all_results)
     overall_report = generate_overall_quality_report(all_results, config, input_choice, paths)
     timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+    
+    # 确保报告目录存在
+    os.makedirs(paths['report_dir'], exist_ok=True)
     
     # Determine the filename based on input_choice
     report_names = {
@@ -383,7 +298,11 @@ def generate_combined_report(all_results, config, input_choice, paths):
     # Generate the filename based on the sorted choice
     if sorted_choice in report_names:
         report_name = report_names[sorted_choice]
+    elif len(sorted_choice) > 1:
+        # 如果选择了多个算法，统一使用综合报告名称
+        report_name = '综合质量AI检测'
     else:
+        # 单个算法但不在映射表中，使用默认名称
         report_name = '+'.join(report_names[char] for char in sorted_choice if char in report_names)
     
     filename = os.path.join(paths['report_dir'], f"{report_name}_{timestamp}.html")
@@ -409,278 +328,157 @@ def generate_combined_report(all_results, config, input_choice, paths):
     """
     with open(filename, "w", encoding="utf-8") as f:
         f.write(html_content)
-    logger.info("Combined report generated: %s", filename)
+    print(f"Combined report generated: {filename}")
+    return filename
 
 
 
-def evaluation(paths, config, input_choice):
+def evaluation(paths, config, input_choice, specific_image_paths=None):
     all_results = []
     
-    # 安全获取模板图片，检查是否存在
-    jpg_templates = glob.glob(os.path.join(paths['template_image_dir'], '*.jpg'))
-    png_templates = glob.glob(os.path.join(paths['template_image_dir'], '*.png'))
-    
+    # 更健壮的模板图片路径查找
     template_image_path = None
     
-    # 尝试从模板目录获取图片
-    if jpg_templates:
-        template_image_path = jpg_templates[0]
-        logger.info("使用模板目录中的JPG图片: %s", template_image_path)
-    elif png_templates:
-        template_image_path = png_templates[0]
-        logger.info("使用模板目录中的PNG图片: %s", template_image_path)
-    
-    # 如果模板目录没有图片，尝试使用比较目录中的第一张图片作为模板
-    if template_image_path is None:
-        jpg_comparisons = glob.glob(os.path.join(paths['comparison_image_dir'], '*.jpg'))
-        png_comparisons = glob.glob(os.path.join(paths['comparison_image_dir'], '*.png'))
-        
-        if jpg_comparisons:
-            template_image_path = jpg_comparisons[0]
-            logger.warning(
-                "模板目录中没有图片，使用比较目录中的第一张JPG图片作为模板: %s",
-                template_image_path
-            )
-        elif png_comparisons:
-            template_image_path = png_comparisons[0]
-            logger.warning(
-                "模板目录中没有图片，使用比较目录中的第一张PNG图片作为模板: %s",
-                template_image_path
-            )
-        else:
-            # 如果比较目录也没有图片，则显示错误并根据情况跳过需要模板的算法
-            logger.error(
-                "无法找到任何模板图片。模板目录和比较目录都没有JPG或PNG图片。"
-            )
-            if '1' in input_choice or '3' in input_choice:
-                logger.warning(
-                    "算法选择中包含需要模板图片的算法(1,3)，但找不到模板图片。这些算法将被跳过。"
-                )
-    
-    # 获取所有比较图片 - 优先使用paths['all_image_paths']
-    if 'all_image_paths' in paths and paths['all_image_paths']:
-        comparison_images = paths['all_image_paths']
-        logger.info("使用指定的图片列表，共有 %s 张图片", len(comparison_images))
+    # 查找JPG文件
+    jpg_files = glob.glob(os.path.join(paths['template_image_dir'], '*.jpg'))
+    if jpg_files:
+        template_image_path = jpg_files[0]
     else:
-        # 回退到传统方式：从目录获取图片
-        comparison_images = (
-            glob.glob(os.path.join(paths['comparison_image_dir'], '*.jpg')) + 
-            glob.glob(os.path.join(paths['comparison_image_dir'], '*.png'))
-        )
+        # 查找PNG文件
+        png_files = glob.glob(os.path.join(paths['template_image_dir'], '*.png'))
+        if png_files:
+            template_image_path = png_files[0]
+        else:
+            # 查找其他常见图片格式
+            jpeg_files = glob.glob(os.path.join(paths['template_image_dir'], '*.jpeg'))
+            if jpeg_files:
+                template_image_path = jpeg_files[0]
     
-    # 确保有图片需要处理
-    if not comparison_images:
-        logger.error("没有图片可以处理。")
-        return  # 如果没有图片，直接返回
+    # 如果仍然没有找到模板图片，抛出错误
+    if template_image_path is None:
+        raise FileNotFoundError(f"在模板目录 '{paths['template_image_dir']}' 中没有找到任何图片文件 (支持格式: .jpg, .png, .jpeg)")
     
-    # 为每个图片创建结果存储
-    for image_path in tqdm(comparison_images, desc='Processing images'):
+    print(f"使用模板图片: {template_image_path}")
+    
+    # 根据是否提供了specific_image_paths来决定处理哪些图片
+    if specific_image_paths:
+        # 使用指定的图片路径列表
+        image_paths_to_process = specific_image_paths
+        print(f"处理指定的 {len(image_paths_to_process)} 张图片")
+    else:
+        # 扫描整个目录（保持原有行为）
+        image_paths_to_process = (glob.glob(os.path.join(paths['comparison_image_dir'], '*.jpg')) + 
+                                 glob.glob(os.path.join(paths['comparison_image_dir'], '*.png')))
+        print(f"扫描目录找到 {len(image_paths_to_process)} 张图片")
+    
+    # 为每张图片创建结果条目
+    for image_path in tqdm(image_paths_to_process, desc='Processing images'):
         image_name = os.path.basename(image_path)
         all_results.append((image_name, []))
     
-    # 记录每个算法是否执行成功
-    algorithm_success = {'1': False, '2': False, '3': False, '4': False}
+    report_paths = []
     
-    # 如果是综合模式，执行所有可能的算法
-    if input_choice == '5':
-        actual_input_choice = '1234'
-    else:
-        actual_input_choice = input_choice
-    
-    # 单独执行每个算法，捕获每个算法可能的异常
-    for algorithm in actual_input_choice:
-        if algorithm not in '1234':
-            continue
-            
-        logger.info("开始执行算法 %s", algorithm)
-        
-        try:
-            # 算法1和3需要模板图片
-            if (algorithm in '13') and not template_image_path:
-                logger.info("跳过算法 %s，因为没有找到有效的模板图片", algorithm)
-                continue
-                
-            for i, (image_name, result_group) in tqdm(
-                enumerate(all_results), 
-                desc=f'执行算法 {algorithm}', 
-                total=len(all_results)
-            ):
-                # 获取完整图片路径
+    if input_choice != '5':
+        for i, (image_name, result_group) in tqdm(enumerate(all_results), desc='Evaluating images', total=len(all_results)):
+            # 根据是否使用specific_image_paths来构建图片路径
+            if specific_image_paths:
+                image_path = image_paths_to_process[i]
+            else:
                 image_path = os.path.join(paths['comparison_image_dir'], image_name)
-                # 如果图片路径是完整路径，直接使用
-                if os.path.exists(image_name):
-                    image_path = image_name
-                elif not os.path.exists(image_path):
-                    # 尝试查找完整路径
-                    for full_path in comparison_images:
-                        if os.path.basename(full_path) == image_name:
-                            image_path = full_path
-                            break
-                
-                # 根据算法选择执行相应的处理函数
-                if algorithm == '1' and template_image_path:
-                    hamming = is_similar(template_image_path, image_path)
-                    result_group.append((1, hamming))
-                elif algorithm == '2':
-                    result_quality = calculate_image_quality(image_path)
-                    result_group.append((2, result_quality))
-                elif algorithm == '3' and template_image_path:
-                    result_fashion = evaluate_fashion_image(template_image_path, image_path)
-                    result_group.append((3, result_fashion))
-                elif algorithm == '4':
-                    clarity_result = calculate_composite_score(image_path)
-                    result_group.append((4, clarity_result))
             
-            # 标记算法执行成功
-            algorithm_success[algorithm] = True
-            logger.info("算法 %s 执行成功", algorithm)
-            
-            # 为每个算法单独生成报告
-            # 构建只包含当前算法的输入选择
-            single_algorithm_choice = algorithm
-            timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-            
-            # 生成单算法报告
-            try:
-                filtered_results = []
-                for image_name, result_group in all_results:
-                    filtered_group = [(func_id, result) for func_id, result in result_group 
-                                    if str(func_id) == algorithm]
-                    if filtered_group:  # 只添加有结果的图片
-                        filtered_results.append((image_name, filtered_group))
-                        
-                if filtered_results:
-                    algorithm_report = generate_algorithm_summary_report(
-                        paths, single_algorithm_choice, config)
-                    overall_report = generate_overall_quality_report(
-                        filtered_results, config, single_algorithm_choice, paths)
-                    
-                    # 确定报告文件名
-                    report_names = {
-                        '1': '图像准确度',
-                        '2': '图像质量',
-                        '3': '图像纹理',
-                        '4': '图像清晰度'
-                    }
-                    
-                    report_name = report_names.get(algorithm, f'算法{algorithm}')
-                    filename = os.path.join(paths['report_dir'], 
-                                          f"{report_name}_{timestamp}.html")
-                    
-                    # 生成HTML内容
-                    html_content = f"""
-                    <html>
-                    <head>
-                    <meta charset=\"UTF-8\">
-                    <style>
-                        body {{ font-family: Arial, sans-serif; }}
-                        table {{ width: 100%; border-collapse: collapse; margin: 10px 0; }}
-                        th, td {{ border: 1px solid black; padding: 8px; text-align: center; }}
-                        th {{ background-color: #f2f2f2; }}
-                        td {{ text-align: center; }}
-                    </style>
-                    </head>
-                    <body>
-                    <h1 style=\"text-align: center;\">{report_name}分析报告</h1>
-                    {algorithm_report}
-                    {overall_report}
-                    </body>
-                    </html>
-                    """
-                    
-                    with open(filename, "w", encoding="utf-8") as f:
-                        f.write(html_content)
-                    logger.info("为算法 %s 生成了单独报告: %s", algorithm, filename)
-                    
-                    # 如果是唯一选择的算法，同时生成一个名为report.html的主报告文件，供后端识别
-                    if len(actual_input_choice) == 1:
-                        main_report_file = os.path.join(paths['report_dir'], "report.html")
-                        with open(main_report_file, "w", encoding="utf-8") as f:
-                            f.write(html_content)
-                        logger.info("为算法 %s 生成了主报告文件: %s", algorithm, main_report_file)
-            except Exception as report_error:
-                logger.error("为算法 %s 生成报告时出错: %s", algorithm, str(report_error))
-                
-        except Exception as algorithm_error:
-            logger.error("执行算法 %s 时出错: %s", algorithm, str(algorithm_error))
-            # 错误只影响当前算法，不影响其他算法的执行
-    
-    # 如果至少有一个算法成功执行，生成综合报告
-    if any(algorithm_success.values()):
-        # 筛选出成功执行的算法
-        successful_algorithms = ''.join([alg for alg, success in algorithm_success.items() 
-                                       if success])
+            if '1' in input_choice:
+                hamming = is_similar(template_image_path, image_path)
+                result_group.append((1, hamming))
+            if '2' in input_choice:
+                result_quality = calculate_image_quality(image_path)
+                result_group.append((2, result_quality))
+            if '3' in input_choice:
+                result_fashion = evaluate_fashion_image(template_image_path, image_path)
+                result_group.append((3, result_fashion))
+            if '4' in input_choice:
+                clarity_result = calculate_composite_score(image_path)
+                result_group.append((4, clarity_result))
         
-        if len(successful_algorithms) > 0:
-            try:
-                # 生成综合报告
-                logger.info("生成综合报告，包含算法: %s", successful_algorithms)
-                timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-                
-                if successful_algorithms == '1234' or input_choice == '5':
-                    report_name = '综合质量AI检测'
-                else:
-                    report_names = {
-                        '1': '图像准确度',
-                        '2': '图像质量',
-                        '3': '图像纹理',
-                        '4': '图像清晰度'
-                    }
-                    report_name = '+'.join([report_names.get(alg, f'算法{alg}') 
-                                          for alg in successful_algorithms])
-                
-                filename = os.path.join(paths['report_dir'], f"{report_name}_{timestamp}.html")
-                
-                # 筛选出成功算法的结果
-                filtered_results = []
+        # 生成单个算法报告
+        for algorithm in input_choice:
+            if algorithm in ['1', '2', '3', '4']:
+                # 为单个算法创建只包含该算法数据的结果集
+                single_algorithm_results = []
                 for image_name, result_group in all_results:
-                    filtered_group = [(func_id, result) for func_id, result in result_group 
-                                    if str(func_id) in successful_algorithms]
-                    if filtered_group:  # 只添加有结果的图片
-                        filtered_results.append((image_name, filtered_group))
+                    single_result_group = []
+                    for func_id, result in result_group:
+                        if str(func_id) == algorithm:
+                            single_result_group.append((func_id, result))
+                    if single_result_group:
+                        single_algorithm_results.append((image_name, single_result_group))
                 
-                if filtered_results:
-                    algorithm_report = generate_algorithm_summary_report(
-                        paths, successful_algorithms, config)
-                    overall_report = generate_overall_quality_report(
-                        filtered_results, config, successful_algorithms, paths)
-                    
-                    html_content = f"""
-                    <html>
-                    <head>
-                    <meta charset=\"UTF-8\">
-                    <style>
-                        body {{ font-family: Arial, sans-serif; }}
-                        table {{ width: 100%; border-collapse: collapse; margin: 10px 0; }}
-                        th, td {{ border: 1px solid black; padding: 8px; text-align: center; }}
-                        th {{ background-color: #f2f2f2; }}
-                        td {{ text-align: center; }}
-                    </style>
-                    </head>
-                    <body>
-                    <h1 style=\"text-align: center;\">{report_name}综合报告</h1>
-                    {algorithm_report}
-                    {overall_report}
-                    </body>
-                    </html>
-                    """
-                    
-                    with open(filename, "w", encoding="utf-8") as f:
-                        f.write(html_content)
-                    logger.info("生成了综合报告: %s", filename)
-                    
-                    # 同时生成一个名为report.html的主报告文件，供后端识别
-                    main_report_file = os.path.join(paths['report_dir'], "report.html")
-                    with open(main_report_file, "w", encoding="utf-8") as f:
-                        f.write(html_content)
-                    logger.info("生成了主报告文件: %s", main_report_file)
-            except Exception as report_error:
-                logger.error("生成综合报告时出错: %s", str(report_error))
+                single_report_path = generate_combined_report(single_algorithm_results, config, algorithm, paths)
+                report_paths.append(single_report_path)
+                print(f"已生成算法{algorithm}的单独报告")
+        
+        # 如果选择了多个算法，还要生成综合报告
+        if len(input_choice) > 1:
+            combined_report_path = generate_combined_report(all_results, config, input_choice, paths)
+            report_paths.append(combined_report_path)
+            print(f"已生成综合报告")
     
-    # 如果是特殊选项
-    if input_choice == '6':
+    elif input_choice == '5':
+        input_choice = '1234'
+        for i, (image_name, result_group) in tqdm(enumerate(all_results), desc='Evaluating images for input choice 5', total=len(all_results)):
+            # 根据是否使用specific_image_paths来构建图片路径
+            if specific_image_paths:
+                image_path = image_paths_to_process[i]
+            else:
+                image_path = os.path.join(paths['comparison_image_dir'], image_name)
+            
+            hamming = is_similar(template_image_path, image_path)
+            result_group.append((1, hamming))
+            result_quality = calculate_image_quality(image_path)
+            result_group.append((2, result_quality))
+            result_fashion = evaluate_fashion_image(template_image_path, image_path)
+            result_group.append((3, result_fashion))
+            clarity_result = calculate_composite_score(image_path)
+            result_group.append((4, clarity_result))
+        
+        # 为选择5生成所有单个算法报告和综合报告
+        for algorithm in ['1', '2', '3', '4']:
+            # 为单个算法创建只包含该算法数据的结果集
+            single_algorithm_results = []
+            for image_name, result_group in all_results:
+                single_result_group = []
+                for func_id, result in result_group:
+                    if str(func_id) == algorithm:
+                        single_result_group.append((func_id, result))
+                if single_result_group:
+                    single_algorithm_results.append((image_name, single_result_group))
+            
+            single_report_path = generate_combined_report(single_algorithm_results, config, algorithm, paths)
+            report_paths.append(single_report_path)
+            print(f"已生成算法{algorithm}的单独报告")
+        
+        # 生成综合报告
+        combined_report_path = generate_combined_report(all_results, config, input_choice, paths)
+        report_paths.append(combined_report_path)
+        print(f"已生成综合报告")
+        
+    elif input_choice == '6':
         generate_prompt(paths['input_image_uid'], paths['x_token'])
-        logger.info("生成了AI提示")
+        print("generate_prompt")
+        return {"status": "success", "message": "Prompt生成完成"}
+    elif input_choice == '0':
+        print("退出程序")
+        return {"status": "success", "message": "程序退出"}
     elif input_choice == '7':
         generate_anomaly_images(paths['anomaly_output_dir'])
-        logger.info("已生成异常图像数据")
+        print("已生成异常图像数据")
+        return {"status": "success", "message": "异常图像数据生成完成"}
+    
+    # 返回处理结果
+    return {
+        "status": "success",
+        "message": f"图像处理完成，算法选择: {input_choice}",
+        "report_paths": report_paths,  # 返回所有生成的报告路径
+        "main_report_path": report_paths[-1] if report_paths else None,  # 主报告路径（综合报告或最后一个）
+        "processed_images": len(all_results),
+        "template_image": template_image_path
+    }

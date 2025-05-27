@@ -23,7 +23,7 @@ if algorithm_dir not in sys.path:
     sys.path.insert(0, algorithm_dir)
 
 # 直接从final2导出process_images函数
-from final2.main import process_images
+from final2.api_integration import process_images
 
 # 定义导出的符号
 __all__ = ['process_images'] 

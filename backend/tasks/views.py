@@ -2,17 +2,17 @@ from django.shortcuts import render
 from rest_framework import viewsets, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from .models import Task
-from .serializers import TaskSerializer, TaskDetailSerializer
+from .models import Task, Report
+from .serializers import TaskSerializer, TaskDetailSerializer, ReportSerializer
 from .tasks import submit_task
-from .status_updater import update_task_status, create_report_for_task
+from .status_updater import update_task_status
 import logging
 import os
 import threading
 import time
 import re
 from django.conf import settings
-from django.http import JsonResponse
+from django.http import JsonResponse, FileResponse, Http404
 from django.core.cache import cache
 from django.db import transaction
 from django.views.decorators.csrf import csrf_exempt
@@ -316,17 +316,6 @@ class TaskViewSet(viewsets.ModelViewSet):
         try:
             task = self.get_object()
             
-            # 如果任务已完成但没有报告记录，尝试创建
-            if task.status == 'completed':
-                from reports.models import Report
-                
-                # 检查是否已存在报告记录
-                if not Report.objects.filter(task=task).exists():
-                    # 尝试创建报告记录
-                    success, message = create_report_for_task(task.id)
-                    if success:
-                        logger.info(f"自动为任务 {task.id} 创建了报告记录")
-            
             # 返回任务状态
             data = {
                 'id': task.id,
@@ -356,14 +345,58 @@ class TaskViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
-            # 强制生成报告
-            success, message = create_report_for_task(task.id)
-            
-            if success:
-                return Response({'message': '报告生成成功'})
-            else:
+            # 使用final2.utils生成报告
+            try:
+                from backend.final2.utils import evaluation
+                
+                # 获取算法选择
+                algorithm_choice = getattr(task, 'algorithms', '1234')
+                if isinstance(algorithm_choice, list):
+                    algorithm_choice = ''.join(algorithm_choice)
+                
+                # 设置输出目录
+                output_dir = os.path.join(settings.REPORTS_DIR, f"task_{task.id}")
+                os.makedirs(output_dir, exist_ok=True)
+                
+                # 准备路径配置 - 使用绝对路径
+                base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                paths = {
+                    'template_image_dir': os.path.join(base_dir, 'final2', 'data', 'template'),
+                    'comparison_image_dir': os.path.join(base_dir, 'final2', 'data', 'comparision'),
+                    'report_dir': output_dir
+                }
+                
+                # 使用统一的配置
+                from backend.final2.config import get_config
+                config = get_config()
+                
+                # 使用final2的evaluation函数生成报告
+                evaluation(paths, config, algorithm_choice)
+                
+                # 查找生成的HTML报告文件
+                import glob
+                html_files = glob.glob(os.path.join(output_dir, "*.html"))
+                
+                if html_files:
+                    # 创建报告记录
+                    report = Report(
+                        title=f"{task.name} - 质量检测报告",
+                        task=task,
+                        file_path=html_files[0]
+                    )
+                    report.save()
+                    
+                    return Response({'message': '报告生成成功'})
+                else:
+                    return Response(
+                        {'error': '报告文件生成失败'}, 
+                        status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                    )
+                    
+            except Exception as e:
+                logger.error(f"生成报告时出错: {e}")
                 return Response(
-                    {'error': message}, 
+                    {'error': f'生成报告失败: {str(e)}'}, 
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
             
@@ -404,8 +437,45 @@ def check_all_reports(request):
     检查所有已完成任务的报告记录，自动创建缺失的报告
     """
     try:
-        from .status_updater import task_report_mapping_check
-        fixed_count, error_count = task_report_mapping_check()
+        import glob
+        
+        fixed_count = 0
+        error_count = 0
+        
+        logger.info("开始检查任务和报告的对应关系")
+        
+        # 获取所有已完成的任务
+        completed_tasks = Task.objects.filter(status='completed')
+        
+        for task in completed_tasks:
+            try:
+                # 检查报告文件是否存在
+                report_dir = os.path.join(settings.REPORTS_DIR, f"task_{task.id}")
+                
+                # 检查是否已存在报告记录
+                if not Report.objects.filter(task=task).exists():
+                    # 查找HTML报告文件
+                    html_files = glob.glob(os.path.join(report_dir, "*.html"))
+                    
+                    if html_files:
+                        # 创建报告记录
+                        report = Report(
+                            title=f"任务 {task.name} 的报告",
+                            task=task,
+                            file_path=html_files[0]
+                        )
+                        report.save()
+                        fixed_count += 1
+                        logger.info(f"为任务 {task.id} 创建了缺失的报告记录")
+            
+            except Exception as e:
+                logger.error(f"检查任务 {task.id} 报告时出错: {e}")
+                error_count += 1
+        
+        logger.info(
+            f"任务和报告对应关系检查完成，修复了 {fixed_count} 个报告，"
+            f"发生 {error_count} 个错误"
+        )
             
         return JsonResponse({
             'message': f'报告检查完成，修复了 {fixed_count} 个报告，发生 {error_count} 个错误',
@@ -415,3 +485,70 @@ def check_all_reports(request):
     except Exception as e:
         logger.error(f"检查所有报告时出错: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
+
+
+class ReportViewSet(viewsets.ModelViewSet):
+    """报告视图集 - 支持查看和删除"""
+    queryset = Report.objects.all()
+    permission_classes = (permissions.IsAuthenticated,)
+    
+    def get_queryset(self):
+        """只返回当前用户任务的报告"""
+        return Report.objects.filter(task__created_by=self.request.user)
+    
+    def get_serializer_class(self):
+        """返回报告序列化器"""
+        return ReportSerializer
+    
+    def destroy(self, request, *args, **kwargs):
+        """删除报告记录和文件"""
+        report = self.get_object()
+        
+        try:
+            # 删除HTML文件
+            if os.path.exists(report.file_path):
+                os.remove(report.file_path)
+                logger.info(f"已删除报告文件: {report.file_path}")
+            else:
+                logger.warning(f"报告文件不存在: {report.file_path}")
+            
+            # 删除数据库记录
+            report_title = report.title
+            report.delete()
+            logger.info(f"已删除报告记录: {report_title}")
+            
+            return Response(
+                {'message': '报告删除成功'}, 
+                status=status.HTTP_204_NO_CONTENT
+            )
+            
+        except Exception as e:
+            logger.error(f"删除报告失败: {e}")
+            return Response(
+                {'error': f'删除报告失败: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    @action(detail=True, methods=['get'])
+    def download(self, request, pk=None):
+        """下载报告文件"""
+        report = self.get_object()
+        
+        try:
+            if os.path.exists(report.file_path):
+                response = FileResponse(
+                    open(report.file_path, 'rb'),
+                    content_type='text/html',
+                    as_attachment=True,
+                    filename=f"{report.title}.html"
+                )
+                return response
+            else:
+                raise Http404("报告文件不存在")
+                
+        except Exception as e:
+            logger.error(f"下载报告文件失败: {e}")
+            return Response(
+                {'error': f'下载失败: {str(e)}'}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

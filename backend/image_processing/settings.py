@@ -29,7 +29,7 @@ SECRET_KEY = 'django-insecure-=!q0cm&&vv6#(@ynfdk!wk^g%3*cjmdk7q=+l6v5l50mnmq4o5
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['0.0.0.0']
+ALLOWED_HOSTS = ['0.0.0.0', 'localhost', '127.0.0.1']
 
 
 # Application definition
@@ -45,11 +45,11 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'rest_framework_simplejwt',
+    'rest_framework_simplejwt.token_blacklist',
     # 自定义应用
     'users',
     'images',
     'tasks',
-    'reports',
 ]
 
 MIDDLEWARE = [
@@ -134,7 +134,11 @@ REST_FRAMEWORK = {
 # JWT设置
 SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer', 'JWT'),
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=30),  # 延长到30天
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=90),  # refresh token 90天
+    'ROTATE_REFRESH_TOKENS': True,  # 启用refresh token轮换
+    'BLACKLIST_AFTER_ROTATION': True,  # 轮换后将旧token加入黑名单
+    'UPDATE_LAST_LOGIN': True,  # 更新最后登录时间
 }
 
 # Internationalization

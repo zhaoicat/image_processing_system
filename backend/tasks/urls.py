@@ -7,6 +7,4 @@ router.register(r'', TaskViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
-    path('create/', create_task, name='create_task'),
-    path('check_reports/', check_all_reports, name='check_all_reports'),
 ] 

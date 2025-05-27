@@ -8,9 +8,11 @@ import os
 import time
 import json
 import logging
+import threading
+import glob
 
 # 导入V2现代化处理函数
-from final2.main import process_images
+from backend.final2.api_integration import process_images
 
 # 使用Django配置的日志记录器
 logger = logging.getLogger(__name__)
@@ -53,9 +55,114 @@ def update_task_status_file(report_dir, status, progress=0, message=None):
         logger.error("更新任务状态文件失败: %s", str(e))
 
 
+def _process_task_async(task_data):
+    """
+    异步处理任务的内部函数
+    
+    参数:
+        task_data: 包含任务信息的字典
+    """
+    # 获取任务参数
+    task_id = task_data.get("task_id")
+    algorithm_choice = task_data.get("algorithm_choice", "5")
+    report_dir = task_data.get("report_dir")
+    image_paths = task_data.get("image_paths", [])
+
+    logger.info("开始异步处理任务: %s", task_id)
+
+    try:
+        # 更新状态为处理中
+        update_task_status_file(
+            report_dir, "processing", 10, 
+            "正在使用V2现代化算法处理..."
+        )
+        
+        # 调用V2处理函数 - 使用正确的路径配置
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        result = process_images(
+            image_paths=image_paths,
+            output_dir=report_dir,
+            algorithm_choice=algorithm_choice,
+            custom_paths={
+                'template_image_dir': os.path.join(base_dir, 'final2', 'data', 'template'),
+                'comparison_image_dir': os.path.dirname(image_paths[0]) if image_paths else report_dir,
+                'report_dir': report_dir
+            }
+        )
+        
+        if result["status"] == "success":
+            logger.info("任务 %s V2处理成功", task_id)
+            update_task_status_file(
+                report_dir, "completed", 100, "V2现代化处理完成"
+            )
+            
+            # 自动创建报告记录 - 为每个生成的报告文件创建记录
+            try:
+                from tasks.models import Report, Task
+                
+                # 获取任务对象
+                task = Task.objects.get(id=task_id)
+                
+                # 查找生成的HTML报告文件
+                html_files = glob.glob(os.path.join(report_dir, "*.html"))
+                
+                if html_files:
+                    # 算法名称映射
+                    algorithm_names = {
+                        '图像准确度': '图像准确度AI检测（ImageHash算法）',
+                        '图像质量': '图像质量AI检测（Opencv算法1）',
+                        '图像纹理': '图像纹理质量AI检测（Opencv算法2）',
+                        '图像清晰度': '图像清晰度AI检测（Opencv+ScikitImage算法3）',
+                        '综合质量AI检测': '综合质量AI检测'
+                    }
+                    
+                    created_reports = []
+                    for html_file in html_files:
+                        # 从文件名提取报告类型
+                        filename = os.path.basename(html_file)
+                        report_type = None
+                        
+                        for key in algorithm_names.keys():
+                            if key in filename:
+                                report_type = algorithm_names[key]
+                                break
+                        
+                        if not report_type:
+                            report_type = "质量检测报告"
+                        
+                        # 创建报告记录
+                        report = Report(
+                            title=f"{task.name} - {report_type}",
+                            task=task,
+                            file_path=html_file
+                        )
+                        report.save()
+                        created_reports.append(report)
+                        logger.info("任务 %s 报告记录已创建: %s - %s", task_id, report_type, html_file)
+                    
+                    logger.info("任务 %s 共创建了 %d 个报告记录", task_id, len(created_reports))
+                else:
+                    logger.warning("任务 %s 未找到HTML报告文件", task_id)
+                    
+            except Exception as e:
+                logger.error("任务 %s 创建报告记录失败: %s", task_id, str(e))
+        else:
+            error_msg = result.get("message", "V2处理失败")
+            logger.error("任务 %s V2处理失败: %s", task_id, error_msg)
+            update_task_status_file(
+                report_dir, "failed", 0, f"V2处理失败: {error_msg}"
+            )
+            
+    except Exception as e:
+        logger.error("任务 %s V2处理时出错: %s", task_id, str(e))
+        update_task_status_file(
+            report_dir, "failed", 0, f"V2处理异常: {str(e)}"
+        )
+
+
 def submit_task(task_data):
     """
-    提交任务到V2现代化处理
+    提交任务到V2现代化处理（异步）
 
     参数:
         task_data: 包含任务信息的字典，包括:
@@ -65,9 +172,9 @@ def submit_task(task_data):
             - image_paths: 图像路径列表
 
     返回:
-        bool: 是否成功提交任务
+        bool: 是否成功提交任务（立即返回，不等待处理完成）
     """
-    logger.info("提交任务: %s （使用V2现代化处理）", task_data['task_id'])
+    logger.info("提交任务: %s （使用V2现代化处理，异步模式）", task_data['task_id'])
 
     # 获取任务参数
     task_id = task_data.get("task_id")
@@ -91,18 +198,35 @@ def submit_task(task_data):
         return False
 
     try:
-        # 更新状态为处理中
+        # 创建并启动异步处理线程
+        thread = threading.Thread(
+            target=_process_task_async,
+            args=(task_data,),
+            name=f"TaskProcessor-{task_id}",
+            daemon=True  # 设置为守护线程，主程序退出时自动结束
+        )
+        thread.start()
+        
+        logger.info("任务 %s 已成功提交到异步处理队列", task_id)
+        return True
+        
+    except Exception as e:
+        logger.error("提交任务 %s 到异步队列失败: %s", task_id, str(e))
         update_task_status_file(
-            report_dir, "processing", 10, 
-            "正在使用V2现代化算法处理..."
+            report_dir, "failed", 0, f"提交任务失败: {str(e)}"
         )
         
-        # 调用V2处理函数
+        # 调用V2处理函数 - 使用正确的路径配置
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         result = process_images(
-            task_id=str(task_id),
-            algorithm_choice=algorithm_choice,
+            image_paths=image_paths,
             output_dir=report_dir,
-            image_paths=image_paths
+            algorithm_choice=algorithm_choice,
+            custom_paths={
+                'template_image_dir': os.path.join(base_dir, 'final2', 'data', 'template'),
+                'comparison_image_dir': os.path.dirname(image_paths[0]) if image_paths else report_dir,
+                'report_dir': report_dir
+            }
         )
         
         if result["status"] == "success":
@@ -110,6 +234,57 @@ def submit_task(task_data):
             update_task_status_file(
                 report_dir, "completed", 100, "V2现代化处理完成"
             )
+            
+            # 自动创建报告记录 - 为每个生成的报告文件创建记录
+            try:
+                from tasks.models import Report, Task
+                
+                # 获取任务对象
+                task = Task.objects.get(id=task_id)
+                
+                # 查找生成的HTML报告文件
+                html_files = glob.glob(os.path.join(report_dir, "*.html"))
+                
+                if html_files:
+                    # 算法名称映射
+                    algorithm_names = {
+                        '图像准确度': '图像准确度AI检测（ImageHash算法）',
+                        '图像质量': '图像质量AI检测（Opencv算法1）',
+                        '图像纹理': '图像纹理质量AI检测（Opencv算法2）',
+                        '图像清晰度': '图像清晰度AI检测（Opencv+ScikitImage算法3）',
+                        '综合质量AI检测': '综合质量AI检测'
+                    }
+                    
+                    created_reports = []
+                    for html_file in html_files:
+                        # 从文件名提取报告类型
+                        filename = os.path.basename(html_file)
+                        report_type = None
+                        
+                        for key in algorithm_names.keys():
+                            if key in filename:
+                                report_type = algorithm_names[key]
+                                break
+                        
+                        if not report_type:
+                            report_type = "质量检测报告"
+                        
+                        # 创建报告记录
+                        report = Report(
+                            title=f"{task.name} - {report_type}",
+                            task=task,
+                            file_path=html_file
+                        )
+                        report.save()
+                        created_reports.append(report)
+                        logger.info("任务 %s 报告记录已创建: %s - %s", task_id, report_type, html_file)
+                    
+                    logger.info("任务 %s 共创建了 %d 个报告记录", task_id, len(created_reports))
+                else:
+                    logger.warning("任务 %s 未找到HTML报告文件", task_id)
+                    
+            except Exception as e:
+                logger.error("任务 %s 创建报告记录失败: %s", task_id, str(e))
             return True
         else:
             error_msg = result.get("message", "V2处理失败")

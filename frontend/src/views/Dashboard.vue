@@ -166,7 +166,7 @@ const navigateTo = (path) => {
               >
                 <div class="recent-item-name">{{ report.title }}</div>
                 <div class="recent-item-info">
-                  <span class="date">{{ new Date(report.generated_at).toLocaleString() }}</span>
+                  <span class="date">{{ new Date(report.created_at).toLocaleString() }}</span>
                 </div>
               </div>
             </div>

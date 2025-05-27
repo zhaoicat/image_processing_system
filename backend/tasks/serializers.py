@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Task
+from .models import Task, Report
 from images.models import Image
 from images.serializers import ImageSerializer
 
@@ -26,4 +26,14 @@ class TaskSerializer(serializers.ModelSerializer):
         return dict(Task.ALGORITHM_CHOICES).get(obj.algorithm)
 
 class TaskDetailSerializer(TaskSerializer):
-    images = ImageSerializer(many=True, read_only=True) 
+    images = ImageSerializer(many=True, read_only=True)
+
+class ReportSerializer(serializers.ModelSerializer):
+    """报告序列化器"""
+    task_name = serializers.CharField(source='task.name', read_only=True)
+    task_id = serializers.IntegerField(source='task.id', read_only=True)
+    
+    class Meta:
+        model = Report
+        fields = ['id', 'title', 'task_id', 'task_name', 'file_path', 'created_at']
+        read_only_fields = ['id', 'created_at'] 

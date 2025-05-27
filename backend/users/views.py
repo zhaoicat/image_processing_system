@@ -1,4 +1,3 @@
-from django.shortcuts import render
 from rest_framework import status, permissions
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -6,7 +5,6 @@ from rest_framework.generics import CreateAPIView
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
 from .serializers import UserSerializer, UserRegistrationSerializer
-from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 # Create your views here.
@@ -33,7 +31,8 @@ class LoginView(APIView):
             
             response = Response()
             response.data = {
-                'token': str(refresh.access_token),
+                'access': str(refresh.access_token),
+                'refresh': str(refresh),
                 'user': UserSerializer(user).data
             }
             return response
