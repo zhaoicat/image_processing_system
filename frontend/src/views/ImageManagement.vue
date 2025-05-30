@@ -369,10 +369,10 @@ const handleImageError = (event) => {
                     <span class="meta-label">上传时间:</span>
                     <span class="meta-value">{{ new Date(image.uploaded_at).toLocaleString() }}</span>
                   </div>
-                  <div class="meta-item" v-if="image.image_hash">
+                  <!-- <div class="meta-item" v-if="image.image_hash">
                     <span class="meta-label">哈希值:</span>
                     <span class="meta-value hash-value">{{ image.image_hash.substring(0, 8) }}...</span>
-                  </div>
+                  </div> -->
                 </div>
               </div>
             </div>

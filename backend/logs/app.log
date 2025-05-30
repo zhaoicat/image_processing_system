@@ -2528,3 +2528,109 @@ django.db.utils.OperationalError: no such table: token_blacklist_outstandingtoke
 [2025-05-27 16:26:18] INFO [django.utils.autoreload:667] - Watching for file changes with StatReloader
 [2025-05-27 16:26:21] INFO [django.utils.autoreload:265] - /Users/gszhao/code/小红书/帮忙写个前端功能/image_processing_system/backend/tasks/tasks.py changed, reloading.
 [2025-05-27 16:26:21] INFO [django.utils.autoreload:667] - Watching for file changes with StatReloader
+[2025-05-27 16:52:09] DEBUG [tasks.status_updater:20] - 开始更新任务状态
+[2025-05-27 16:52:09] DEBUG [tasks.status_updater:92] - 任务状态更新完成，已更新 0 个任务
+[2025-05-27 16:52:09] DEBUG [tasks.views:41] - 任务状态已更新
+[2025-05-27 16:52:09] INFO [django.server:213] - "GET /api/images/ HTTP/1.1" 200 4214
+[2025-05-27 16:52:09] INFO [django.server:213] - "GET /api/tasks/ HTTP/1.1" 200 805
+[2025-05-27 16:52:09] INFO [django.server:213] - "GET /api/images/ HTTP/1.1" 200 4214
+[2025-05-27 16:52:09] INFO [django.server:213] - "GET /api/tasks/ HTTP/1.1" 200 805
+[2025-05-27 22:09:24] DEBUG [tasks.status_updater:20] - 开始更新任务状态
+[2025-05-27 22:09:24] INFO [django.server:213] - "GET /api/images/ HTTP/1.1" 200 4214
+[2025-05-27 22:09:24] DEBUG [tasks.status_updater:92] - 任务状态更新完成，已更新 0 个任务
+[2025-05-27 22:09:24] DEBUG [tasks.views:41] - 任务状态已更新
+[2025-05-27 22:09:24] INFO [django.server:213] - "GET /api/tasks/ HTTP/1.1" 200 805
+[2025-05-27 22:09:24] INFO [django.server:213] - "GET /api/images/ HTTP/1.1" 200 4214
+[2025-05-27 22:09:24] INFO [django.server:213] - "GET /media/images/2025/05/26/T%E6%81%A4.jpg HTTP/1.1" 304 0
+[2025-05-27 22:09:24] INFO [django.server:213] - "GET /media/images/2025/05/26/1.jpg HTTP/1.1" 304 0
+[2025-05-27 22:09:24] INFO [django.server:213] - "GET /media/images/2025/05/26/1663065798008456.png HTTP/1.1" 304 0
+[2025-05-27 22:09:24] INFO [django.server:213] - "GET /media/images/2025/05/26/20250409jgt0000036.png HTTP/1.1" 304 0
+[2025-05-27 22:09:24] INFO [django.server:213] - "GET /api/tasks/ HTTP/1.1" 200 805
+[2025-05-30 08:06:45] INFO [django.utils.autoreload:667] - Watching for file changes with StatReloader
+[2025-05-30 08:06:56] INFO [django.server:213] - "POST /api/auth/login/ HTTP/1.1" 200 573
+[2025-05-30 08:06:56] DEBUG [tasks.status_updater:20] - 开始更新任务状态
+[2025-05-30 08:06:56] DEBUG [tasks.status_updater:92] - 任务状态更新完成，已更新 0 个任务
+[2025-05-30 08:06:56] DEBUG [tasks.views:41] - 任务状态已更新
+[2025-05-30 08:06:56] INFO [django.server:213] - "GET /api/images/ HTTP/1.1" 200 4214
+[2025-05-30 08:06:56] INFO [django.server:213] - "GET /api/tasks/ HTTP/1.1" 200 805
+[2025-05-30 08:06:56] INFO [django.server:213] - "GET /api/reports/ HTTP/1.1" 200 3482
+[2025-05-30 08:06:57] INFO [django.server:213] - "GET /api/images/ HTTP/1.1" 200 4214
+[2025-05-30 08:06:57] INFO [django.server:213] - "GET /media/images/2025/05/26/1.jpg HTTP/1.1" 200 133687
+[2025-05-30 08:06:57] INFO [django.server:213] - "GET /media/images/2025/05/26/1663065798008456.png HTTP/1.1" 200 963430
+[2025-05-30 08:06:57] INFO [django.server:213] - "GET /media/images/2025/05/26/20250408skt0000070.png HTTP/1.1" 200 1530746
+[2025-05-30 08:06:57] INFO [django.server:213] - "GET /media/images/2025/05/26/20250409jgt0000036.png HTTP/1.1" 200 1729513
+[2025-05-30 08:06:57] INFO [django.server:213] - "GET /media/images/2025/05/26/20250408skt0000072.png HTTP/1.1" 200 1850983
+[2025-05-30 08:06:57] INFO [django.server:213] - "GET /media/images/2025/05/26/T%E6%81%A4.jpg HTTP/1.1" 200 1829806
+[2025-05-30 08:06:57] INFO [django.server:213] - "GET /media/images/2025/05/26/20250408skt0000079.png HTTP/1.1" 200 2144293
+[2025-05-30 08:06:57] INFO [django.server:213] - "GET /media/images/2025/05/26/%E7%89%9B%E4%BB%94%E8%A3%A4.png HTTP/1.1" 200 1488505
+[2025-05-30 08:06:57] INFO [django.server:213] - "GET /media/images/2025/05/26/20250411jgt0000001_1.png HTTP/1.1" 200 2020204
+[2025-05-30 08:06:57] INFO [django.server:213] - "GET /media/images/2025/05/26/20250408skt0000076.png HTTP/1.1" 200 2529092
+[2025-05-30 08:06:57] INFO [django.server:213] - "GET /media/images/2025/05/26/20250409jgt0000034_.png HTTP/1.1" 200 1882188
+[2025-05-30 08:06:57] INFO [django.server:213] - "GET /media/images/2025/05/26/20250408skt00000701.png HTTP/1.1" 200 1321446
+[2025-05-30 08:06:57] INFO [django.server:213] - "GET /media/images/2025/05/26/IMG2.jpg HTTP/1.1" 200 1001272
+[2025-05-30 08:06:57] INFO [django.server:213] - "GET /media/images/2025/05/26/20250408skt0000069.png HTTP/1.1" 200 2087034
+[2025-05-30 08:06:57] INFO [django.server:213] - "GET /media/images/2025/05/26/IMG.jpg HTTP/1.1" 200 2447157
+[2025-05-30 08:06:57] INFO [django.server:213] - "GET /media/images/2025/05/26/ur11070288.png HTTP/1.1" 200 5443383
+[2025-05-30 08:06:57] INFO [django.server:213] - "GET /media/images/2025/05/26/UMM150001B5A0M.png HTTP/1.1" 200 7678427
+[2025-05-30 08:06:57] INFO [django.server:213] - "GET /media/images/2025/05/26/ur11070243.png HTTP/1.1" 200 12520217
+[2025-05-30 08:06:58] INFO [django.server:213] - "GET /media/images/2025/05/26/U123.png HTTP/1.1" 200 14088683
+[2025-05-30 08:06:58] DEBUG [tasks.status_updater:20] - 开始更新任务状态
+[2025-05-30 08:06:58] DEBUG [tasks.status_updater:92] - 任务状态更新完成，已更新 0 个任务
+[2025-05-30 08:06:58] DEBUG [tasks.views:41] - 任务状态已更新
+[2025-05-30 08:06:58] INFO [django.server:213] - "GET /api/images/ HTTP/1.1" 200 4214
+[2025-05-30 08:06:58] INFO [django.server:213] - "GET /api/tasks/ HTTP/1.1" 200 805
+[2025-05-30 08:06:58] INFO [django.server:213] - "GET /api/images/ HTTP/1.1" 200 4214
+[2025-05-30 08:06:58] INFO [django.server:213] - "GET /api/tasks/ HTTP/1.1" 200 805
+[2025-05-30 08:07:01] INFO [django.server:213] - "GET /api/images/ HTTP/1.1" 200 4214
+[2025-05-30 08:08:15] DEBUG [tasks.status_updater:20] - 开始更新任务状态
+[2025-05-30 08:08:15] INFO [django.server:213] - "GET /api/images/ HTTP/1.1" 200 4214
+[2025-05-30 08:08:15] DEBUG [tasks.status_updater:92] - 任务状态更新完成，已更新 0 个任务
+[2025-05-30 08:08:15] DEBUG [tasks.views:41] - 任务状态已更新
+[2025-05-30 08:08:15] INFO [django.server:213] - "GET /api/tasks/ HTTP/1.1" 200 805
+[2025-05-30 08:08:15] INFO [django.server:213] - "GET /api/images/ HTTP/1.1" 200 4214
+[2025-05-30 08:08:15] INFO [django.server:213] - "GET /api/tasks/ HTTP/1.1" 200 805
+[2025-05-30 08:08:18] DEBUG [tasks.status_updater:20] - 开始更新任务状态
+[2025-05-30 08:08:18] DEBUG [tasks.status_updater:92] - 任务状态更新完成，已更新 0 个任务
+[2025-05-30 08:08:18] DEBUG [tasks.views:41] - 任务状态已更新
+[2025-05-30 08:08:18] INFO [django.server:213] - "GET /api/reports/ HTTP/1.1" 200 3482
+[2025-05-30 08:08:18] INFO [django.server:213] - "GET /api/tasks/ HTTP/1.1" 200 805
+[2025-05-30 08:08:20] DEBUG [tasks.status_updater:20] - 开始更新任务状态
+[2025-05-30 08:08:20] DEBUG [tasks.status_updater:92] - 任务状态更新完成，已更新 0 个任务
+[2025-05-30 08:08:20] DEBUG [tasks.views:41] - 任务状态已更新
+[2025-05-30 08:08:20] INFO [django.server:213] - "GET /api/images/ HTTP/1.1" 200 4214
+[2025-05-30 08:08:20] INFO [django.server:213] - "GET /api/tasks/ HTTP/1.1" 200 805
+[2025-05-30 08:08:20] INFO [django.server:213] - "GET /api/images/ HTTP/1.1" 200 4214
+[2025-05-30 08:08:20] INFO [django.server:213] - "GET /api/tasks/ HTTP/1.1" 200 805
+[2025-05-30 08:08:22] DEBUG [tasks.status_updater:20] - 开始更新任务状态
+[2025-05-30 08:08:22] DEBUG [tasks.status_updater:92] - 任务状态更新完成，已更新 0 个任务
+[2025-05-30 08:08:22] DEBUG [tasks.views:41] - 任务状态已更新
+[2025-05-30 08:08:22] INFO [django.server:213] - "GET /api/reports/ HTTP/1.1" 200 3482
+[2025-05-30 08:08:22] INFO [django.server:213] - "GET /api/tasks/ HTTP/1.1" 200 805
+[2025-05-30 08:09:42] DEBUG [tasks.status_updater:20] - 开始更新任务状态
+[2025-05-30 08:09:42] DEBUG [tasks.status_updater:92] - 任务状态更新完成，已更新 0 个任务
+[2025-05-30 08:09:42] DEBUG [tasks.views:41] - 任务状态已更新
+[2025-05-30 08:09:42] INFO [django.server:213] - "GET /api/images/ HTTP/1.1" 200 4214
+[2025-05-30 08:09:42] INFO [django.server:213] - "GET /api/tasks/ HTTP/1.1" 200 805
+[2025-05-30 08:09:42] INFO [django.server:213] - "GET /api/images/ HTTP/1.1" 200 4214
+[2025-05-30 08:09:42] INFO [django.server:213] - "GET /api/tasks/ HTTP/1.1" 200 805
+[2025-05-30 08:09:43] INFO [django.server:213] - "GET /api/images/ HTTP/1.1" 200 4214
+[2025-05-30 08:09:43] DEBUG [tasks.status_updater:20] - 开始更新任务状态
+[2025-05-30 08:09:43] INFO [django.server:213] - "GET /api/images/ HTTP/1.1" 200 4214
+[2025-05-30 08:09:43] DEBUG [tasks.status_updater:92] - 任务状态更新完成，已更新 0 个任务
+[2025-05-30 08:09:43] DEBUG [tasks.views:41] - 任务状态已更新
+[2025-05-30 08:09:43] INFO [django.server:213] - "GET /api/tasks/ HTTP/1.1" 200 805
+[2025-05-30 08:09:43] INFO [django.server:213] - "GET /api/images/ HTTP/1.1" 200 4214
+[2025-05-30 08:09:43] INFO [django.server:213] - "GET /api/tasks/ HTTP/1.1" 200 805
+[2025-05-30 08:09:57] DEBUG [tasks.status_updater:20] - 开始更新任务状态
+[2025-05-30 08:09:57] DEBUG [tasks.status_updater:92] - 任务状态更新完成，已更新 0 个任务
+[2025-05-30 08:09:57] DEBUG [tasks.views:41] - 任务状态已更新
+[2025-05-30 08:09:57] INFO [django.server:213] - "GET /api/reports/ HTTP/1.1" 200 3482
+[2025-05-30 08:09:57] INFO [django.server:213] - "GET /api/tasks/ HTTP/1.1" 200 805
+[2025-05-30 08:09:58] INFO [django.server:213] - "GET /api/reports/64/ HTTP/1.1" 200 691
+[2025-05-30 08:09:58] INFO [django.server:213] - "GET /api/reports/ HTTP/1.1" 200 3482
+[2025-05-30 08:09:58] INFO [django.server:213] - "GET /media/reports/task_243/%E7%BB%BC%E5%90%88%E8%B4%A8%E9%87%8FAI%E6%A3%80%E6%B5%8B_20250527151225.html HTTP/1.1" 200 36751
+[2025-05-30 08:10:56] INFO [django.server:213] - "GET /api/reports/64/ HTTP/1.1" 200 691
+[2025-05-30 08:10:56] INFO [django.server:213] - "GET /api/reports/ HTTP/1.1" 200 3482
+[2025-05-30 08:11:23] INFO [django.server:213] - "GET /api/reports/64/ HTTP/1.1" 200 691
+[2025-05-30 08:11:23] INFO [django.server:213] - "GET /api/reports/ HTTP/1.1" 200 3482
+[2025-05-30 08:15:42] INFO [django.server:213] - "GET /api/reports/64/download/ HTTP/1.1" 200 14070

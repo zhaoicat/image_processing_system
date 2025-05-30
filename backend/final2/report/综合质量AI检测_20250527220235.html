@@ -1,0 +1,269 @@
+
+    <html>
+    <head>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial, sans-serif; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { border: 1px solid black; padding: 8px; text-align: center; }
+        th { background-color: #f2f2f2; }
+        td { text-align: center; }
+    </style>
+    </head>
+    <body>
+    <h1 style="text-align: center;"></h1>
+    
+    <h1 style="text-align: center;">算法测试结果报告</h1>
+    <table>
+    <tr>
+        <th>算法名称</th>
+        <th>检测图片总数</th>
+        <th>通过总数</th>
+        <th>未通过总数</th>
+    </tr>
+    
+        <tr>
+            <td>ImageHash</td>
+            <td>2</td>
+            <td>2</td>
+            <td>0</td>
+        </tr>
+        
+        <tr>
+            <td>OpenCV1</td>
+            <td>2</td>
+            <td>2</td>
+            <td>0</td>
+        </tr>
+        
+        <tr>
+            <td>OpenCV2</td>
+            <td>2</td>
+            <td>2</td>
+            <td>0</td>
+        </tr>
+        
+        <tr>
+            <td>OpenCV3</td>
+            <td>2</td>
+            <td>2</td>
+            <td>0</td>
+        </tr>
+        
+    <tr>
+        <td>合计</td>
+        <td>8</td>
+        <td>8</td>
+        <td>0</td>
+    </tr>
+    </table>
+
+    
+    <h1 style="text-align: center;">综合质量检测报告</h1>
+    <table>
+    <tr>
+        <th>图片名称</th>
+        <th>质量检测名称</th>
+        <th>评估维度</th>
+        <th>评估分数</th>
+        <th>评估结果</th>
+        <th>预期分数</th>
+        <th>是否人工干预</th>
+        <th>检测初始值</th>
+        <th>质量预测区间建议</th>
+    </tr>
+    
+                                        <tr>
+                                            <td rowspan='9'>1.jpg</td>
+                                            <td rowspan='1'>图像准确度AI检测【ImageHash算法】</td>
+                                            <td>汉明距离</td>
+                                            <td>532</td>
+                                            <td>图像差异显著</td>
+                                            <td>>0</td>
+                                            <td>否</td>
+                                            <td></td>
+                                            <td></td>
+                                        </tr>
+                                        
+                                        <tr>
+                                            <td style='display: none;'></td>
+                                            <td rowspan='3'>图像质量AI检测【opencv算法1】</td>
+                                            <td>颜色匹配度（目标白色差异）</td>
+                                            <td>119.73423447062994</td>
+                                            <td>差</td>
+                                            <td><20</td>
+                                            <td>否</td>
+                                            <td>119.73423447062994</td>
+                                            <td>颜色匹配度（目标白色差异）：<20为高,20<=欧氏距离<=50一般,>50差</td>
+                                        </tr>
+                                        <tr>
+                                            <td>清晰度（拉普拉斯方差）</td>
+                                            <td>917.9550501345842</td>
+                                            <td>清晰</td>
+                                            <td>>100</td>
+                                            <td>否</td>
+                                            <td>917.9550501345842</td>
+                                            <td>清晰度（拉普拉斯方差）：方差>100(越高越清晰),30<方差<=100中等,<=30差</td>
+                                        </tr>
+                                        <tr>
+                                            <td>噪声水平（灰度标准差）</td>
+                                            <td>100.34225810466522</td>
+                                            <td>差</td>
+                                            <td><30</td>
+                                            <td>否</td>
+                                            <td>100.34225810466522</td>
+                                            <td>噪声水平（灰度标准差）：<30为好,30>=Z>=50为中,>50差</td>
+                                        </tr>
+                                        
+                                        <tr>
+                                            <td style='display: none;'></td>
+                                            <td rowspan='3'>图像纹理质量AI检测【opencv算法2】</td>
+                                            <td>纹理复杂度</td>
+                                            <td>1.0</td>
+                                            <td>优秀</td>
+                                            <td>>0.6</td>
+                                            <td>否</td>
+                                            <td></td>
+                                            <td></td>
+                                        </tr>
+                                        <tr>
+                                            <td>元素完整性</td>
+                                            <td>0.3328472673892975</td>
+                                            <td>一般</td>
+                                            <td>>0.6</td>
+                                            <td>是</td>
+                                            <td></td>
+                                            <td></td>
+                                        </tr>
+                                        <tr>
+                                            <td>画面质量</td>
+                                            <td>1</td>
+                                            <td>优秀</td>
+                                            <td>>0.6</td>
+                                            <td>否</td>
+                                            <td></td>
+                                            <td></td>
+                                        </tr>
+                                        
+                            <tr>
+                                <td style='display: none;'></td>
+                                <td rowspan='2'>图像清晰度AI检测【opencv算法3+ScikitImage算法】</td>
+                                <td rowspan='1'>Brenner算法</td>
+                                <td>2771.4685435792658 </td>
+                                <td>优秀</td>
+                                <td>>2500</td>
+                                <td>否</td>
+                                
+                                <td>2771.4685435792658</td>
+                                <td>>2500为优，2500>=B>=1000为一般，<1000为差</td>
+                            </tr>
+                            <tr>    
+                                <td rowspan='1'>SSIM对比度</td>
+                                <td>78.19601998191345</td>
+                                <td>一般</td>
+                                <td>>80</td>
+                                <td>是</td>
+                                
+                                <td>78.19601998191345</td>
+                                <td>>80为优，50<=S<=80为一般，<50为差</td>
+                            </tr>
+                            
+                                        <tr>
+                                            <td rowspan='9'>20250408skt0000069.png</td>
+                                            <td rowspan='1'>图像准确度AI检测【ImageHash算法】</td>
+                                            <td>汉明距离</td>
+                                            <td>504</td>
+                                            <td>图像差异显著</td>
+                                            <td>>0</td>
+                                            <td>否</td>
+                                            <td></td>
+                                            <td></td>
+                                        </tr>
+                                        
+                                        <tr>
+                                            <td style='display: none;'></td>
+                                            <td rowspan='3'>图像质量AI检测【opencv算法1】</td>
+                                            <td>颜色匹配度（目标白色差异）</td>
+                                            <td>45.636203281273325</td>
+                                            <td>一般</td>
+                                            <td><20</td>
+                                            <td>是</td>
+                                            <td>45.636203281273325</td>
+                                            <td>颜色匹配度（目标白色差异）：<20为高,20<=欧氏距离<=50一般,>50差</td>
+                                        </tr>
+                                        <tr>
+                                            <td>清晰度（拉普拉斯方差）</td>
+                                            <td>1568.858094240315</td>
+                                            <td>清晰</td>
+                                            <td>>100</td>
+                                            <td>否</td>
+                                            <td>1568.858094240315</td>
+                                            <td>清晰度（拉普拉斯方差）：方差>100(越高越清晰),30<方差<=100中等,<=30差</td>
+                                        </tr>
+                                        <tr>
+                                            <td>噪声水平（灰度标准差）</td>
+                                            <td>53.27141564149871</td>
+                                            <td>差</td>
+                                            <td><30</td>
+                                            <td>否</td>
+                                            <td>53.27141564149871</td>
+                                            <td>噪声水平（灰度标准差）：<30为好,30>=Z>=50为中,>50差</td>
+                                        </tr>
+                                        
+                                        <tr>
+                                            <td style='display: none;'></td>
+                                            <td rowspan='3'>图像纹理质量AI检测【opencv算法2】</td>
+                                            <td>纹理复杂度</td>
+                                            <td>1.0</td>
+                                            <td>优秀</td>
+                                            <td>>0.6</td>
+                                            <td>否</td>
+                                            <td></td>
+                                            <td></td>
+                                        </tr>
+                                        <tr>
+                                            <td>元素完整性</td>
+                                            <td>0.23916757106781006</td>
+                                            <td>一般</td>
+                                            <td>>0.6</td>
+                                            <td>是</td>
+                                            <td></td>
+                                            <td></td>
+                                        </tr>
+                                        <tr>
+                                            <td>画面质量</td>
+                                            <td>1</td>
+                                            <td>优秀</td>
+                                            <td>>0.6</td>
+                                            <td>否</td>
+                                            <td></td>
+                                            <td></td>
+                                        </tr>
+                                        
+                            <tr>
+                                <td style='display: none;'></td>
+                                <td rowspan='2'>图像清晰度AI检测【opencv算法3+ScikitImage算法】</td>
+                                <td rowspan='1'>Brenner算法</td>
+                                <td>3655.997484465965 </td>
+                                <td>优秀</td>
+                                <td>>2500</td>
+                                <td>否</td>
+                                
+                                <td>3655.997484465965</td>
+                                <td>>2500为优，2500>=B>=1000为一般，<1000为差</td>
+                            </tr>
+                            <tr>    
+                                <td rowspan='1'>SSIM对比度</td>
+                                <td>75.24703553435116</td>
+                                <td>一般</td>
+                                <td>>80</td>
+                                <td>是</td>
+                                
+                                <td>75.24703553435116</td>
+                                <td>>80为优，50<=S<=80为一般，<50为差</td>
+                            </tr>
+                            </table>
+
+    </body>
+    </html>
+    

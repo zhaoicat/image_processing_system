@@ -980,7 +980,7 @@ const forceRefresh = async () => {
                 <td>{{ formatDateTime(report.created_at) }}</td>
                 <td class="actions-cell">
                   <button class="view-button" @click="viewReportLog(report.id, report.task_name || report.title)" title="查看详细日志">
-                    📝 日志
+                    📝 查看报告
                   </button>
                   <!-- <button class="view-button" @click="downloadReport(report.id)" title="下载报告">
                     📥 下载
@@ -1174,6 +1174,15 @@ const forceRefresh = async () => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
+}
+
+.download-button {
+  background-color: #1890ff;
+  white-space: nowrap; /* 确保按钮内容不换行 */
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
 }
 
 .page-header h2 {
@@ -1560,7 +1569,7 @@ const forceRefresh = async () => {
 .close-button {
   background-color: transparent;
   border: 1px solid #d9d9d9;
-  color: rgba(0, 0, 0, 0.65);
+  color: rgba(254, 254, 254, 0.65);
   padding: 6px 16px;
   border-radius: 4px;
   cursor: pointer;
